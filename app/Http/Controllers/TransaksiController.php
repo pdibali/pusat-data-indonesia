@@ -306,9 +306,9 @@ class TransaksiController extends Controller
             ->update(['status' => 'expired']);
 
         $query = Transaksi::where('user_id', $user->user_id)
-                          ->with('layanan')
-                          ->whereIn('status', ['pending', 'success', 'failed', 'expired', 'cancelled'])
-                          ->orderByDesc('created_at');
+                  ->with('layanan')
+                  ->whereIn('status', ['pending', 'menunggu_verifikasi', 'success', 'failed', 'expired', 'cancelled'])
+                  ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);

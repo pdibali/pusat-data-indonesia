@@ -132,6 +132,7 @@
                         <option value="">Semua Status</option>
                         <option value="success"   {{ request('status') === 'success'   ? 'selected' : '' }}>Berhasil</option>
                         <option value="pending"   {{ request('status') === 'pending'   ? 'selected' : '' }}>Menunggu</option>
+                        <option value="menunggu_verifikasi" {{ request('status') === 'menunggu_verifikasi' ? 'selected' : '' }}>Menunggu Verifikasi</option>
                         <option value="failed"    {{ request('status') === 'failed'    ? 'selected' : '' }}>Gagal</option>
                         <option value="expired"   {{ request('status') === 'expired'   ? 'selected' : '' }}>Kedaluwarsa</option>
                         <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Dibatalkan</option>
@@ -196,6 +197,11 @@
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
                                     <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block"></span>
                                     Menunggu bayar
+                                </span>
+                            @elseif($item->status === 'menunggu_verifikasi')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>
+                                    Menunggu verifikasi
                                 </span>
                             @elseif($isExpired)
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
@@ -525,7 +531,8 @@ const transaksiData = {
 
     const statusCfg = {
         success:   { bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Berhasil'   },
-        pending:   { bg: 'bg-yellow-50',   text: 'text-yellow-700',  dot: 'bg-yellow-400',  label: 'Menunggu'   },
+        pending:   { bg: 'bg-yellow-50',   text: 'text-yellow-700',  dot: 'bg-yellow-400',  label: 'Menunggu Pembayaran'   },
+        menunggu_verifikasi:  { bg: 'bg-blue-50',     text: 'text-blue-700',    dot: 'bg-blue-400',    label: 'Menunggu Verifikasi' },
         expired:   { bg: 'bg-gray-100',    text: 'text-gray-600',    dot: 'bg-gray-400',     label: 'Kedaluwarsa' },
         failed:    { bg: 'bg-red-50',      text: 'text-red-700',     dot: 'bg-red-500',      label: 'Gagal'      },
         cancelled: { bg: 'bg-gray-100',    text: 'text-gray-600',    dot: 'bg-gray-400',     label: 'Dibatalkan' },
@@ -551,6 +558,7 @@ const transaksiData = {
             const cfg = statusCfg[d.status] || statusCfg.pending;
 
             const headerBg = d.status === 'success'   ? 'from-emerald-500 to-teal-600'
+                        : d.status === 'menunggu_verifikasi' ? 'from-blue-500 to-indigo-600'
                         : d.status === 'pending'   ? 'from-amber-400 to-yellow-500'
                         : d.status === 'expired'   ? 'from-gray-400 to-gray-500'
                         : d.status === 'failed'    ? 'from-red-500 to-rose-600'
@@ -560,6 +568,8 @@ const transaksiData = {
                 ? '<i class="fas fa-check-circle text-white text-3xl"></i>'
                 : d.status === 'pending'
                 ? '<i class="fas fa-clock text-white text-3xl"></i>'
+                : d.status === 'menunggu_verifikasi'
+                ? '<i class="fas fa-hourglass-half text-white text-3xl"></i>'
                 : d.status === 'expired'
                 ? '<i class="fas fa-hourglass-end text-white text-3xl"></i>'
                 : '<i class="fas fa-times-circle text-white text-3xl"></i>';
