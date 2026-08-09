@@ -18,6 +18,7 @@ use App\Services\WorkflowService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Pagination\Paginator;
 use App\Services\StemmerService;
+use App\Models\Transaksi;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -80,6 +81,13 @@ class AppServiceProvider extends ServiceProvider
                 ->values();
 
             $view->with('allKlasifikasi', $allKlasifikasi);
+        });
+
+        View::composer('layouts.partials.sidebar', function ($view) {
+            $view->with(
+                'pendingVerifikasiCount',
+                Transaksi::where('status', 'menunggu_verifikasi')->count()
+            );
         });
 
         $this->configureDefaults();

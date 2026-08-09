@@ -50,6 +50,7 @@
                                 <option value="">Semua Status</option>
                                 <option value="success"   {{ request('status') === 'success'   ? 'selected' : '' }}>Berhasil</option>
                                 <option value="pending"   {{ request('status') === 'pending'   ? 'selected' : '' }}>Menunggu</option>
+                                <option value="menunggu_verifikasi" {{ request('status') === 'menunggu_verifikasi' ? 'selected' : '' }}>Menunggu Verifikasi</option>
                                 <option value="failed"    {{ request('status') === 'failed'    ? 'selected' : '' }}>Gagal</option>
                                 <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Dibatalkan</option>
                             </select>

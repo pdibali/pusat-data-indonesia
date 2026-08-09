@@ -119,9 +119,10 @@
             "onlyCustomer" => true,
             "onlyAdmin"    => false,
             "active"       => request()->segment(1) === 'admin' && in_array(request()->segment(2), ['transaksi-admin']),
+            "badge"        => $pendingVerifikasiCount ?? 0,
             "children" => [
-                (object)["title" => "Dashboard",        "path" => "/admin/transaksi-admin/dashboard", "icon" => "fas fa-chart-pie", "active" => request()->is('admin/transaksi-admin/dashboard'),                                              "onlyAdmin" => false],
-                (object)["title" => "Daftar Transaksi", "path" => "/admin/transaksi-admin",           "icon" => "fas fa-list-alt",  "active" => request()->is('admin/transaksi-admin') && !request()->is('admin/transaksi-admin/dashboard'), "onlyAdmin" => false],
+                (object)["title" => "Dashboard",        "path" => "/admin/transaksi-admin/dashboard", "icon" => "fas fa-chart-pie", "active" => request()->is('admin/transaksi-admin/dashboard'), "onlyAdmin" => false],
+                (object)["title" => "Daftar Transaksi", "path" => "/admin/transaksi-admin",           "icon" => "fas fa-list-alt",  "active" => request()->is('admin/transaksi-admin') && !request()->is('admin/transaksi-admin/dashboard'), "onlyAdmin" => false, "badge" => $pendingVerifikasiCount ?? 0],
             ],
         ],
         // (object)[
@@ -177,41 +178,51 @@
                 <li x-data="{ open: {{ $isOpen ? 'true' : 'false' }} }">
 
                     @if($hasChildren)
-                    <button @click="open = !open"
-                            class="w-full flex items-center justify-between px-2.5 py-2 rounded-md
-                                   transition-colors text-xs
-                                   {{ $menu->active
-                                       ? 'bg-white/15 text-white font-semibold'
-                                       : 'text-white/70 hover:bg-white/10 hover:text-white' }}
-                                   relative">
-                        @if($menu->active)
-                            <span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-sky-300 rounded-r-full"></span>
+                        <button @click="open = !open"
+                                class="w-full flex items-center justify-between px-2.5 py-2 rounded-md
+                                    transition-colors text-xs
+                                    {{ $menu->active
+                                        ? 'bg-white/15 text-white font-semibold'
+                                        : 'text-white/70 hover:bg-white/10 hover:text-white' }}
+                                    relative">
+                            @if($menu->active)
+                                <span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-sky-300 rounded-r-full"></span>
+                            @endif
+                            <div class="flex items-center gap-2.5">
+                                <i class="{{ $menu->icon }} w-4 text-center text-[11px]"></i>
+                                <span>{{ $menu->title }}</span>
+                                @if(($menu->badge ?? 0) > 0)
+                                    <span class="flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none animate-pulse">
+                                        {{ $menu->badge > 9 ? '9+' : $menu->badge }}
+                                    </span>
+                                @endif
+                            </div>
+                            <i class="fas fa-chevron-down text-[8px] opacity-50 transition-transform duration-200"
+                            :class="open ? 'rotate-180' : ''"></i>
+                        </button>
+                        @else
+                        <a href="{{ url($menu->path) }}"
+                        @click="sidebarOpen = false"
+                        class="flex items-center justify-between px-2.5 py-2 rounded-md
+                                transition-colors text-xs
+                                {{ $menu->active
+                                    ? 'bg-white/15 text-white font-semibold'
+                                    : 'text-white/70 hover:bg-white/10 hover:text-white' }}
+                                relative">
+                            @if($menu->active)
+                                <span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-sky-300 rounded-r-full"></span>
+                            @endif
+                            <div class="flex items-center gap-2.5">
+                                <i class="{{ $menu->icon }} w-4 text-center text-[11px]"></i>
+                                <span>{{ $menu->title }}</span>
+                            </div>
+                            @if(($menu->badge ?? 0) > 0)
+                                <span class="flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-none animate-pulse">
+                                    {{ $menu->badge > 9 ? '9+' : $menu->badge }}
+                                </span>
+                            @endif
+                        </a>
                         @endif
-                        <div class="flex items-center gap-2.5">
-                            <i class="{{ $menu->icon }} w-4 text-center text-[11px]"></i>
-                            <span>{{ $menu->title }}</span>
-                        </div>
-                        <i class="fas fa-chevron-down text-[8px] opacity-50 transition-transform duration-200"
-                           :class="open ? 'rotate-180' : ''"></i>
-                    </button>
-                    @else
-                    <a href="{{ url($menu->path) }}"
-                       @click="sidebarOpen = false"
-                       class="flex items-center justify-between px-2.5 py-2 rounded-md
-                              transition-colors text-xs
-                              {{ $menu->active
-                                  ? 'bg-white/15 text-white font-semibold'
-                                  : 'text-white/70 hover:bg-white/10 hover:text-white' }}
-                              relative">
-                        @if($menu->active)
-                            <span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-sky-300 rounded-r-full"></span>
-                        @endif
-                        <div class="flex items-center gap-2.5">
-                            <i class="{{ $menu->icon }} w-4 text-center text-[11px]"></i>
-                            <span>{{ $menu->title }}</span>
-                        </div>
-                    </a>
-                    @endif
 
                     @if($hasChildren)
                     <ul x-show="open"
@@ -225,14 +236,21 @@
                         @foreach($menu->children as $child)
                         <li>
                             <a href="{{ url($child->path) }}"
-                               @click="sidebarOpen = false"
-                               class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[11px]
-                                      transition-colors
-                                      {{ $child->active
-                                          ? 'text-sky-300 font-semibold'
-                                          : 'text-white/55 hover:text-white hover:bg-white/6' }}">
-                                <i class="{{ $child->icon }} text-[10px]"></i>
-                                <span>{{ $child->title }}</span>
+                            @click="sidebarOpen = false"
+                            class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[11px]
+                                    transition-colors justify-between
+                                    {{ $child->active
+                                        ? 'text-sky-300 font-semibold'
+                                        : 'text-white/55 hover:text-white hover:bg-white/6' }}">
+                                <span class="flex items-center gap-2.5">
+                                    <i class="{{ $child->icon }} text-[10px]"></i>
+                                    <span>{{ $child->title }}</span>
+                                </span>
+                                @if(($child->badge ?? 0) > 0)
+                                    <span class="flex items-center justify-center min-w-[15px] h-3.5 px-1 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none">
+                                        {{ $child->badge > 9 ? '9+' : $child->badge }}
+                                    </span>
+                                @endif
                             </a>
                         </li>
                         @endforeach
