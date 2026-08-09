@@ -62,11 +62,11 @@ return [
 
         'railway' => [
             'driver' => 's3',
-            'key'    => env('RAILWAY_ACCESS_KEY_ID'),
-            'secret' => env('RAILWAY_SECRET_ACCESS_KEY'),
-            'region' => env('RAILWAY_REGION', 'auto'),
-            'bucket' => env('RAILWAY_BUCKET'),
-            'endpoint' => env('RAILWAY_ENDPOINT'),
+            'key'    => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_S3_BUCKET_NAME'),
+            'endpoint' => env('AWS_ENDPOINT_URL'),
             'use_path_style_endpoint' => true,
             'throw' => true,
         ],
