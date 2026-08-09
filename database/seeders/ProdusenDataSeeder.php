@@ -87,6 +87,14 @@ class ProdusenDataSeeder extends Seeder
             ['produsen_id'=>1000,'nama_produsen'=>'Badan Pusat Statistik Indonesia','email'=>'bpshq@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik (BPS) Indonesia','kontak'=>'(62-21) 3841195','alamat'=>'Jl. Dr. Sutomo 6-8, Jakarta 10710 Indonesia'],
             ['produsen_id'=>1001,'nama_produsen'=>'Bank Indonesia','email'=>'bicara@bi.go.id','nama_contact_person'=>'Bank Indonesia Bicara','kontak'=>'131','alamat'=>'Jalan M.H. Thamrin No. 2, Jakarta 10350'],
             ['produsen_id'=>999,'nama_produsen'=>'NA','email'=>'-','nama_contact_person'=>'-','kontak'=>'-','alamat'=>'-'],
+            ['produsen_id'=>1002,'nama_produsen'=>'Badan Pusat Statistik Kota Denpasar','email'=>'bps5171@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kota Denpasar','kontak'=>'(0361) 434326','alamat'=>'Jl. Mulawarman No.11 Denpasar 80111'],
+            ['produsen_id'=>1003,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Jembrana','email'=>'bps5101@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Jembrana','kontak'=>'(0365) 41132','alamat'=>'Jl. Mayor Sugianyar No. 15'],
+            ['produsen_id'=>1005,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Badung','email'=>'bps5103@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Badung','kontak'=>'(0361) 8441616','alamat'=>'Jl. Raya Darmasaba Abiansemal'],
+            ['produsen_id'=>1006,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Tabanan','email'=>'bps5102@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Tabanan','kontak'=>'(0361) 811571','alamat'=>'Jl. Pahlawan No 1B, Tabanan'],
+            ['produsen_id'=>1007,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Bangli','email'=>'bps5106@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Bangli','kontak'=>'0851-1160-5106','alamat'=>'Jl. Lettu Sobat no. 13 Bangli'],
+            ['produsen_id'=>1008,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Klungkung','email'=>'bps5105@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Klungkung','kontak'=>'(0366) 21180','alamat'=>'Jl. Raya Besakih, Desa Akah, 80716, Klungkung'],
+            ['produsen_id'=>1009,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Buleleng','email'=>'bps5108@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Buleleng','kontak'=>'(0362) 22145','alamat'=>'Jl. Dewi Sartika No. 19 Singaraja'],
+            ['produsen_id'=>1010,'nama_produsen'=>'Badan Pusat Statistik Kabupaten Karangasem','email'=>'bps5107@bps.go.id','nama_contact_person'=>'Badan Pusat Statistik Kabupaten Karangasem','kontak'=>'(0363) 21159','alamat'=>'Jl. R.A. Kartini No.4 Amlapura'],
         ];
 
         foreach ($data as $row) {

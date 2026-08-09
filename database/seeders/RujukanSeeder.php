@@ -50,6 +50,132 @@ class RujukanSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'rujukan_id' => 5,
+                'nama_rujukan' => 'Kecamatan Ubud Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 6,
+                'nama_rujukan' => 'Kecamatan Tegallalang Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 7,
+                'nama_rujukan' => 'Kecamatan Sukawati Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 8,
+                'nama_rujukan' => 'Kecamatan Payangan Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 9,
+                'nama_rujukan' => 'Kecamatan Blahbatuh Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 10,
+                'nama_rujukan' => 'Kecamatan Tampaksiring Dalam Angka',
+                'link_rujukan' => 'https://gianyarkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 11,
+                'nama_rujukan' => 'Kota Denpasar Dalam Angka',
+                'link_rujukan' => 'https://denpasarkota.bps.go.id/id/publication/...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1002,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 12,
+                'nama_rujukan' => 'Kabupaten Jembrana Dalam Angka',
+                'link_rujukan' => 'https://jembranakab.bps.go.id/id/publication/2...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1003,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 13,
+                'nama_rujukan' => 'Kabupaten Badung dalam Angka',
+                'link_rujukan' => 'https://badungkab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1005,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 14,
+                'nama_rujukan' => 'Kabupaten Tabanan dalam Angka',
+                'link_rujukan' => 'https://tabanankab.bps.go.id/id/publication/20...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1006,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 15,
+                'nama_rujukan' => 'Kabupaten Bangli Dalam Angka',
+                'link_rujukan' => 'https://banglikab.bps.go.id/id/publication/202...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1007,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 16,
+                'nama_rujukan' => 'Kabupaten Klungkung dalam Angka',
+                'link_rujukan' => 'https://klungkungkab.bps.go.id/id/publication/...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1008,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 17,
+                'nama_rujukan' => 'Kabupaten Buleleng dalam Angka',
+                'link_rujukan' => 'https://bulelengkab.bps.go.id/id/publication/2...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1009,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'rujukan_id' => 18,
+                'nama_rujukan' => 'Kabupaten Karangasem Dalam Angka',
+                'link_rujukan' => 'https://karangasemkab.bps.go.id/id/publicatio...', // TODO: lengkapi URL penuh
+                'gambar_rujukan' => null,
+                'produsen_id' => 1010,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ];
 
         foreach ($data as $row) {
