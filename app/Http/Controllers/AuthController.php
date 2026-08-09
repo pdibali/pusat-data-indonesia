@@ -63,6 +63,13 @@ class AuthController extends Controller
                 ->withInput();
         }
 
+        // ── Tambahan: blokir akun nonaktif ──
+        if ((int) $user->status === 0) {
+            return back()
+                ->withErrors(['username' => 'Akun Anda nonaktif. Silakan hubungi admin.'])
+                ->withInput();
+        }
+
         if (!Hash::check($validated['password'], $user->password)) {
             RateLimiter::hit($throttleKey, 3600);
 
@@ -90,24 +97,10 @@ class AuthController extends Controller
 
         RateLimiter::clear($throttleKey);
 
-        // Username tidak ditemukan
-        if (!$user) {
-            return back()
-                ->withErrors(['username' => 'Username tidak ditemukan.'])
-                ->withInput();
-        }
-
         // Jika status tidak aktif
         if ($user->activation !== 'activated') {
             return back()
                 ->withErrors(['username' => 'Akun belum aktif.'])
-                ->withInput();
-        }
-
-        // Password salah
-        if (!Hash::check($validated['password'], $user->password)) {
-            return back()
-                ->withErrors(['password' => 'Password yang Anda masukkan salah.'])
                 ->withInput();
         }
 

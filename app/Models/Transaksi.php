@@ -31,6 +31,13 @@ class Transaksi extends Model
         'aktif_mulai',
         'aktif_sampai',
         'midtrans_payload',
+        'metode_pembayaran',
+        'bukti_transfer',
+        'nama_pengirim',
+        'bank_pengirim',
+        'catatan_admin',
+        'verified_by',
+        'verified_at',
     ];
 
     protected $casts = [
@@ -38,6 +45,7 @@ class Transaksi extends Model
         'aktif_mulai'      => 'datetime',
         'aktif_sampai'     => 'datetime',
         'midtrans_payload' => 'array',
+        'verified_at' => 'datetime',
     ];
 
     // ── Relations ──────────────────────────────────────────────
@@ -71,6 +79,21 @@ class Transaksi extends Model
     {
         return $query->where('status', 'pending')
                       ->where('created_at', '>', now()->subHours(self::EXPIRY_HOURS));
+    }
+
+    public function scopeMenungguVerifikasi($query)
+    {
+        return $query->where('status', 'menunggu_verifikasi');
+    }
+
+    public function isMenungguVerifikasi(): bool
+    {
+        return $this->status === 'menunggu_verifikasi';
+    }
+
+    public function isManual(): bool
+    {
+        return $this->metode_pembayaran === 'manual';
     }
 
     // ── Helpers ────────────────────────────────────────────────
@@ -132,6 +155,7 @@ class Transaksi extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match($this->status) {
+            'menunggu_verifikasi' => '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Menunggu Verifikasi</span>',
             'success'   => '<span class="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Berhasil</span>',
             'pending'   => '<span class="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 text-xs font-medium px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 bg-yellow-500 rounded-full"></span> Menunggu</span>',
             'failed'    => '<span class="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> Gagal</span>',

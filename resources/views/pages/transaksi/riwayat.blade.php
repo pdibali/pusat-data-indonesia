@@ -230,7 +230,7 @@
                             <div class="flex items-center justify-end gap-3">
                                 @if($isPayable)
                                     <button type="button"
-                                            onclick="bayarSekarang({{ $item->transaksi_id }})"
+                                            onclick="openPaymentChoice({{ $item->transaksi_id }})"
                                             class="text-xs text-white bg-stikom-blue px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium">
                                         Bayar
                                     </button>
@@ -276,7 +276,7 @@
                     </span>
 
                     @if($isPayable)
-                        <span onclick="event.stopPropagation(); bayarSekarang({{ $item->transaksi_id }})"
+                        <span onclick="event.stopPropagation(); openPaymentChoice({{ $item->transaksi_id }})"
                             class="flex-shrink-0 text-xs text-white bg-stikom-blue px-2.5 py-1.5 rounded-lg font-medium mr-1">
                             Bayar
                         </span>
@@ -361,6 +361,46 @@
     </div>
 </div>
 
+{{-- MODAL PILIH METODE BAYAR --}}
+<div id="modal-payment-choice"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+     onclick="closePaymentChoice(event)">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
+        <h3 class="text-center text-gray-800 font-semibold text-base mb-1">Pilih Metode Pembayaran</h3>
+        <p class="text-center text-gray-400 text-xs mb-5">
+            Order ID: <span id="payment-choice-order" class="font-mono"></span>
+        </p>
+
+        <div class="space-y-2.5">
+            @if(\App\Support\Setting::get('midtrans_enabled', true))
+            <button type="button" id="btn-choose-midtrans" onclick="chooseMidtrans()"
+                    class="w-full py-3.5 bg-stikom-blue hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2">
+                <i class="fas fa-credit-card"></i> Kartu / E-Wallet / VA (Midtrans)
+            </button>
+            @else
+            <div class="w-full py-3.5 bg-gray-100 text-gray-400 text-sm font-semibold rounded-xl text-center">
+                Fitur Pembayaran ini akan Segera hadir
+            </div>
+            @endif
+
+            <button type="button" onclick="chooseManual()"
+                    class="w-full py-3.5 border border-stikom-blue text-stikom-blue text-sm font-semibold rounded-xl hover:bg-blue-50 transition flex items-center justify-center gap-2">
+                <i class="fas fa-university"></i> Transfer Bank Manual
+            </button>
+        </div>
+
+        <button type="button" onclick="closePaymentChoice()"
+                class="w-full mt-4 py-2 text-xs text-gray-400 hover:text-gray-600">
+            Batal
+        </button>
+    </div>
+</div>
+
+{{-- Form tersembunyi untuk submit pilihan manual --}}
+<form id="form-manual-choice" method="POST" action="">
+    @csrf
+</form>
+
 {{-- MODAL DETAIL TRANSAKSI --}}
 <div id="modal-detail"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
@@ -415,20 +455,50 @@ const transaksiData = {
 <script src="{{ config('midtrans.snap_url') }}"
         data-client-key="{{ config('midtrans.client_key') }}"></script>
 <script>
-    function bayarSekarang(transaksiId) {
-        const btn = event.currentTarget;
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    let currentPaymentTransaksiId = null;
+
+    function openPaymentChoice(id) {
+        currentPaymentTransaksiId = id;
+        const d = transaksiData[id];
+        document.getElementById('payment-choice-order').textContent = d ? d.order_id : '';
+        document.getElementById('modal-payment-choice').classList.remove('hidden');
+    }
+
+    function closePaymentChoice(e) {
+        if (e && e.target !== document.getElementById('modal-payment-choice')) return;
+        document.getElementById('modal-payment-choice').classList.add('hidden');
+    }
+
+    function chooseMidtrans() {
+        const id = currentPaymentTransaksiId;
+        const btn = document.getElementById('btn-choose-midtrans');
+        closePaymentChoice();
+        bayarSekarang(id, btn);
+    }
+
+    function chooseManual() {
+        const id = currentPaymentTransaksiId;
+        if (!id) return;
+        const form = document.getElementById('form-manual-choice');
+        form.action = `/transaksi/${id}/pilih-manual`;
+        form.submit();
+    }
+
+    function bayarSekarang(transaksiId, btnEl) {
+        const btn = btnEl;
+        const originalHtml = btn ? btn.innerHTML : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
 
         fetch(`/transaksi/${transaksiId}/bayar-ulang`)
             .then(r => r.json().then(data => ({ ok: r.ok, data })))
             .then(({ ok, data }) => {
                 if (!ok) {
                     alert(data.message || 'Gagal memuat pembayaran.');
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                    // Kalau ternyata sudah kedaluwarsa, refresh supaya UI ikut sinkron.
+                    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
                     if (data.message && data.message.includes('kedaluwarsa')) {
                         window.location.reload();
                     }
@@ -440,19 +510,16 @@ const transaksiData = {
                     onPending: function () { window.location.reload(); },
                     onError: function () {
                         alert('Pembayaran gagal. Silakan coba lagi.');
-                        btn.disabled = false;
-                        btn.innerHTML = originalHtml;
+                        if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
                     },
                     onClose: function () {
-                        btn.disabled = false;
-                        btn.innerHTML = originalHtml;
+                        if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
                     }
                 });
             })
             .catch(() => {
                 alert('Terjadi kesalahan jaringan.');
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
+                if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
             });
     }
 
@@ -512,7 +579,7 @@ const transaksiData = {
                         Menunggu konfirmasi pembayaran
                     </p>
                 </div>
-                <button onclick="bayarSekarang(${d.id})"
+                <button onclick="openPaymentChoice(${d.id})"
                         class="w-full py-2.5 bg-stikom-blue hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition">
                     Lanjutkan Pembayaran
                 </button>

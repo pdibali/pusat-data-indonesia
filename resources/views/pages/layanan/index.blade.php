@@ -11,10 +11,23 @@
             <h1 class="text-xl font-bold text-gray-800">Kelola Layanan</h1>
             <p class="text-sm text-gray-500 mt-0.5">Manajemen paket layanan & pricing</p>
         </div>
-        <a href="{{ route('admin.layanan.create') }}"
-           class="btn-primary">
-            <i class="fas fa-plus text-xs"></i> Tambah Layanan
-        </a>
+        <div class="flex items-center gap-3">
+            {{-- Toggle Midtrans --}}
+            @php $midtransOn = \App\Support\Setting::get('midtrans_enabled', true); @endphp
+            <form action="{{ route('admin.settings.toggle_midtrans') }}" method="POST" class="flex items-center gap-2">
+                @csrf
+                <span class="text-sm text-gray-600 font-medium">Midtrans</span>
+                <button type="submit"
+                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 {{ $midtransOn ? 'bg-green-500' : 'bg-gray-300' }}"
+                        title="{{ $midtransOn ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan' }}">
+                    <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 {{ $midtransOn ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                </button>
+            </form>
+
+            <a href="{{ route('admin.layanan.create') }}" class="btn-primary">
+                <i class="fas fa-plus text-xs"></i> Tambah Layanan
+            </a>
+        </div>
     </div>
 
     {{-- Flash --}}

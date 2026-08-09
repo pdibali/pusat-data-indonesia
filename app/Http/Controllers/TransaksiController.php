@@ -16,40 +16,28 @@ class TransaksiController extends Controller
     public function checkout(Request $request)
     {
         if (! Auth::check()) {
-            return redirect()->route('login')
-                ->with('error', 'Silakan login terlebih dahulu untuk berlangganan.');
+            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk berlangganan.');
         }
 
-        $request->validate([
-            'layanan_id' => 'required|exists:layanan,layanan_id',
-        ]);
+        $request->validate(['layanan_id' => 'required|exists:layanan,layanan_id']);
 
         $user    = Auth::user();
-        $layanan = Layanan::where('layanan_id', $request->layanan_id)
-                        ->where('status', 'publish')
-                        ->firstOrFail();
+        $layanan = Layanan::where('layanan_id', $request->layanan_id)->where('status', 'publish')->firstOrFail();
 
         $existing = Transaksi::where('user_id', $user->user_id)
                             ->where('layanan_id', $layanan->layanan_id)
                             ->where('status', 'success')
                             ->where(function ($q) {
-                                $q->whereNull('aktif_sampai')
-                                    ->orWhere('aktif_sampai', '>=', now());
+                                $q->whereNull('aktif_sampai')->orWhere('aktif_sampai', '>=', now());
                             })->first();
 
         if ($existing) {
-            return redirect()->route('transaksi.riwayat')
-                ->with('error', 'Kamu sudah memiliki langganan aktif untuk layanan ini.');
+            return redirect()->route('transaksi.riwayat')->with('error', 'Kamu sudah memiliki langganan aktif untuk layanan ini.');
         }
 
-        // ── Batalkan SEMUA transaksi pending lama milik user ini ──
-        // Diubah dari "per layanan_id yang sama" menjadi seluruh pending user,
-        // supaya tidak ada transaksi pending nyangkut untuk layanan lain.
         Transaksi::where('user_id', $user->user_id)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'menunggu_verifikasi'])
             ->update(['status' => 'cancelled']);
-
-        $orderId = Transaksi::generateOrderId($user->user_id);
 
         $transaksi = Transaksi::create([
             'user_id'      => $user->user_id,
@@ -58,20 +46,92 @@ class TransaksiController extends Controller
             'harga'        => $layanan->harga,
             'durasi'       => $layanan->durasi,
             'durasi_type'  => $layanan->durasi_type,
-            'order_id'     => $orderId,
+            'order_id'     => Transaksi::generateOrderId($user->user_id),
             'status'       => 'pending',
         ]);
 
-        $snapToken = $this->getSnapToken($transaksi, $user, $layanan);
+        return redirect()->route('transaksi.pilih_metode', $transaksi);
+    }
+
+    public function pilihMetode(Transaksi $transaksi)
+    {
+        if ($transaksi->user_id !== Auth::id()) abort(403);
+        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+
+        $transaksi->load('layanan');
+        return view('pages.transaksi.pilih-metode', compact('transaksi'));
+    }
+
+    public function bayarMidtrans(Transaksi $transaksi)
+    {
+        if (!\App\Support\Setting::get('midtrans_enabled', true)) {
+            return back()->with('error', 'Fitur pembayaran Midtrans belum tersedia.');
+        }
+        
+        if ($transaksi->user_id !== Auth::id()) abort(403);
+        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+
+        $layanan = $transaksi->layanan;
+        $snapToken = $this->getSnapToken($transaksi, Auth::user(), $layanan);
 
         if (! $snapToken) {
-            $transaksi->update(['status' => 'failed']);
             return back()->with('error', 'Gagal menghubungi payment gateway. Coba lagi.');
         }
 
-        $transaksi->update(['snap_token' => $snapToken]);
+        $transaksi->update(['snap_token' => $snapToken, 'metode_pembayaran' => 'midtrans']);
 
         return view('pages.transaksi.checkout', compact('transaksi', 'layanan', 'snapToken'));
+    }
+
+    public function pilihManual(Transaksi $transaksi)
+    {
+        if ($transaksi->user_id !== Auth::id()) abort(403);
+        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+
+        $transaksi->update(['metode_pembayaran' => 'manual']);
+
+        return redirect()->route('transaksi.manual.form', $transaksi);
+    }
+
+    // ── Form upload bukti transfer manual ──────────────────────
+    public function manualForm(Transaksi $transaksi)
+    {
+        if ($transaksi->user_id !== Auth::id()) abort(403);
+        if (! $transaksi->isManual()) abort(404);
+        if ($transaksi->status !== 'pending') {
+            return redirect()->route('transaksi.riwayat');
+        }
+
+        $transaksi->load('layanan');
+        return view('pages.transaksi.manual-upload', compact('transaksi'));
+    }
+
+    // ── Simpan bukti transfer yang diupload user ────────────────
+    public function uploadBukti(Request $request, Transaksi $transaksi)
+    {
+        if ($transaksi->user_id !== Auth::id()) abort(403);
+
+        if (! $transaksi->isManual() || $transaksi->status !== 'pending') {
+            return back()->with('error', 'Transaksi ini tidak valid untuk upload bukti transfer.');
+        }
+
+        $request->validate([
+            'bukti_transfer' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'nama_pengirim'  => 'required|string|max:255',
+            'bank_pengirim'  => 'required|string|max:100',
+        ]);
+
+        $path = $request->file('bukti_transfer')->store('bukti-transfer', 'railway');
+
+        $transaksi->update([
+            'bukti_transfer' => $path,
+            'nama_pengirim'  => $request->nama_pengirim,
+            'bank_pengirim'  => $request->bank_pengirim,
+            'status'         => 'menunggu_verifikasi',
+        ]);
+
+        return redirect()->route('transaksi.riwayat')
+            ->with('success', 'Bukti transfer berhasil dikirim. Menunggu verifikasi admin (maks 1x24 jam).');
     }
 
     // ── Bayar Ulang: Ambil Snap Token baru untuk transaksi pending ────

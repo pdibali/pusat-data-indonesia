@@ -27,6 +27,7 @@ use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\AdminTransaksiController;
 use App\Http\Controllers\AnomalyControlController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\SettingController;
 
     // ── Auth ─────────────────────────────────────────────────────
     Route::get('/login',  [AuthController::class, 'loginView'])->name('login');
@@ -197,7 +198,13 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
             Route::get('/dashboard', [AdminTransaksiController::class, 'dashboard'])->name('dashboard');
             Route::get('/',          [AdminTransaksiController::class, 'index'])->name('index');
             Route::get('/{transaksi}', [AdminTransaksiController::class, 'show'])->name('show');
+            Route::get('/{transaksi}/bukti', [AdminTransaksiController::class, 'lihatBukti'])->name('bukti');
+            Route::post('/{transaksi}/verify', [AdminTransaksiController::class, 'verify'])->name('verify');
+            Route::post('/{transaksi}/reject', [AdminTransaksiController::class, 'reject'])->name('reject');
         });
+
+        Route::post('/settings/toggle-midtrans', [SettingController::class, 'toggleMidtrans'])
+            ->name('settings.toggle_midtrans');
     });
 
     // TRANSAKSI — User (memerlukan login)
@@ -207,6 +214,11 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
         Route::get('/{transaksi}/sukses',       [TransaksiController::class, 'sukses'])->name('sukses');   
         Route::get('/{transaksi}/detail',       [TransaksiController::class, 'detail'])->name('detail');
         Route::get('/{transaksi}/status',       [TransaksiController::class, 'status'])->name('status');
+        Route::get('/{transaksi}/pilih-metode', [TransaksiController::class, 'pilihMetode'])->name('pilih_metode');
+        Route::post('/{transaksi}/bayar-midtrans',[TransaksiController::class, 'bayarMidtrans'])->name('bayar_midtrans');
+        Route::post('/{transaksi}/pilih-manual', [TransaksiController::class, 'pilihManual'])->name('pilih_manual');
+        Route::get('/{transaksi}/manual',        [TransaksiController::class, 'manualForm'])->name('manual.form');
+        Route::post('/{transaksi}/upload-bukti', [TransaksiController::class, 'uploadBukti'])->name('upload_bukti');
     });
 
     Route::prefix('organization')->name('organizations.')->group(function () {

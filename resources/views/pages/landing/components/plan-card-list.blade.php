@@ -74,7 +74,7 @@
                             <div class="w-full py-3 mt-auto text-[10px] font-black text-center shrink-0 bg-gray-50 text-gray-400 font-poppins cursor-default border border-gray-200 uppercase tracking-wide">
                                 ✓ Langganan Aktif
                             </div>
-                        @elseauth
+                        @elseif(auth()->check())
                             <form method="POST" action="{{ route('transaksi.checkout') }}" class="mt-auto">
                                 @csrf
                                 <input type="hidden" name="layanan_id" value="{{ $layanan->layanan_id }}">
@@ -86,7 +86,7 @@
                             <a href="{{ route('login') }}?redirect={{ urlencode(route('langganan')) }}" class="block w-full py-3 mt-auto text-[10px] font-black text-center text-stikom shrink-0 bg-stikom-accent hover:bg-yellow-600 hover:text-white transition-all duration-200 font-poppins uppercase tracking-wide">
                                 <p class="px-2">Login untuk Berlangganan</p>
                             </a>
-                        @endauth
+                        @endif
                     </div>
                 </div>
             @else
@@ -126,7 +126,7 @@
                             <div class="w-full py-3 mt-auto text-[10px] font-black text-center shrink-0 bg-gray-50 text-gray-400 font-poppins cursor-default border border-gray-200 uppercase tracking-wide">
                                 ✓ Langganan Aktif
                             </div>
-                        @elseauth
+                        @elseif(auth()->check())
                             <form method="POST" action="{{ route('transaksi.checkout') }}" class="mt-auto">
                                 @csrf
                                 <input type="hidden" name="layanan_id" value="{{ $layanan->layanan_id }}">
@@ -138,7 +138,7 @@
                             <a href="{{ route('login') }}?redirect={{ urlencode(route('langganan')) }}" class="block w-full py-3 mt-auto text-[10px] font-black text-center text-stikom shrink-0 bg-stikom-accent hover:bg-yellow-600 hover:text-white transition-all duration-200 font-poppins uppercase tracking-wide">
                                 <p class="px-2">Login untuk Berlangganan</p>
                             </a>
-                        @endauth
+                        @endif
                     </div>
                 </div>
             @endif

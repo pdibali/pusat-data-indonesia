@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Transaksi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class AdminTransaksiController extends Controller
 {
@@ -103,11 +106,62 @@ class AdminTransaksiController extends Controller
         return view('pages.admin.transaksi.index', compact('transaksis', 'layanans'));
     }
 
+    public function verify(Transaksi $transaksi)
+    {
+        if ($transaksi->status !== 'menunggu_verifikasi') {
+            return back()->with('error', 'Transaksi ini tidak dalam status menunggu verifikasi.');
+        }
+
+        $mulai = Carbon::now();
+
+        $transaksi->update([
+            'status'       => 'success',
+            'aktif_mulai'  => $mulai,
+            'aktif_sampai' => Transaksi::hitungAktifSampai($transaksi->durasi_type, $transaksi->durasi, $mulai),
+            'verified_by'  => Auth::id(),
+            'verified_at'  => now(),
+        ]);
+
+        return back()->with('success', 'Pembayaran berhasil diverifikasi dan langganan diaktifkan.');
+    }
+
+    public function reject(Request $request, Transaksi $transaksi)
+    {
+        if ($transaksi->status !== 'menunggu_verifikasi') {
+            return back()->with('error', 'Transaksi ini tidak dalam status menunggu verifikasi.');
+        }
+
+        $request->validate(['catatan_admin' => 'nullable|string|max:500']);
+
+        $transaksi->update([
+            'status'        => 'failed',
+            'catatan_admin' => $request->catatan_admin,
+            'verified_by'   => Auth::id(),
+            'verified_at'   => now(),
+        ]);
+
+        return back()->with('success', 'Bukti transfer ditolak, user diberi status gagal.');
+    }
+
     // ── Show: Detail satu transaksi ───────────────────────────
     public function show(Transaksi $transaksi)
     {
         $transaksi->load(['user', 'layanan']);
 
         return view('pages.admin.transaksi.show', compact('transaksi'));
+    }
+
+    public function lihatBukti(Transaksi $transaksi)
+    {
+        if (! $transaksi->bukti_transfer) {
+            abort(404);
+        }
+
+        $url = Storage::disk('railway')->temporaryUrl(
+            $transaksi->bukti_transfer,
+            now()->addMinutes(5)
+        );
+
+        return redirect($url);
     }
 }
