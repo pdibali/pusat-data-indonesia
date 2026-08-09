@@ -65,23 +65,28 @@ class AppServiceProvider extends ServiceProvider
             $allKlasifikasi = Klasifikasi::query()
                 ->whereHas('metadata', function ($q) {
                     $q->where('status', 2)
-                      ->whereHas('data', fn($qd) => $qd->where('status', 1));
+                    ->whereHas('data', fn($qd) => $qd->where('status', 1));
                 })
                 ->orderBy('nama_klasifikasi')
                 ->pluck('nama_klasifikasi')
-
                 ->map(fn ($k) => trim((string) $k))
-
                 ->filter(function ($k) {
                     return $k !== ''
                         && $k !== '-'
                         && \Illuminate\Support\Str::slug($k) !== '';
                 })
-
                 ->values();
 
             $view->with('allKlasifikasi', $allKlasifikasi);
+
+            $view->with(
+                'pendingVerifikasiCount',
+                Transaksi::where('status', 'menunggu_verifikasi')->count()
+            );
         });
+
+        // Hapus/comment composer khusus sidebar ini:
+        // View::composer('layouts.partials.sidebar', function ($view) { ... });
 
         View::composer('layouts.partials.sidebar', function ($view) {
             $view->with(
