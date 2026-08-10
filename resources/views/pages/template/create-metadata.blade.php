@@ -4,6 +4,8 @@
 
 {{-- ── Aksen warna untuk partial _preview-table (sky/biru) ── --}}
 <style>
+    :root { --row-indent: 12px; }
+    @media (min-width: 640px) { :root { --row-indent: 24px; } }
     .preview-badge        { background:#f0f9ff; color:#0284c7; border-color:#bae6fd; }
     .preview-btn-primary  { background:#0ea5e9; }
     .preview-btn-primary:hover { background:#0284c7; }
@@ -227,12 +229,10 @@
                         </th>
 
                         {{-- Info --}}
-                        <th class="w-16 px-3 py-3 text-center font-semibold text-gray-600">
+                        <th class="w-10 sm:w-16 px-1 sm:px-3 py-3 text-center font-semibold text-gray-600">
                             Info
                         </th>
-
-                        {{-- Detail --}}
-                        <th class="w-20 px-3 py-3 text-center font-semibold text-gray-600">
+                        <th class="w-12 sm:w-20 px-1 sm:px-3 py-3 text-center font-semibold text-gray-600">
                             <span class="block sm:hidden">Det.</span>
                             <span class="hidden sm:block">Detail</span>
                         </th>
@@ -926,8 +926,10 @@ function buildRow(row) {
     const key        = rowKey(row);
     const depth      = row.depth || 0;
     const checked    = !!selectedMap[key];
-    const indent     = depth * 24;
     const isExpanded = !!expandedMap[key];
+
+    // Indent hanya membesar di layar >= sm; di mobile tetap flat (lihat CSS var di bawah)
+    const indentPx = `calc(var(--row-indent) * ${depth})`;
 
     const displayName = `<span class="font-${depth === 0 ? 'semibold' : 'medium'} text-gray-800">${escH(row.nama)} di ${escH(row.nama_wilayah)}</span>`;
 
@@ -936,7 +938,7 @@ function buildRow(row) {
         detailBtn = `<button type="button"
             onclick="toggleExpand('${key}')"
             title="${isExpanded ? 'Sembunyikan turunan' : 'Tampilkan 1 level wilayah di bawah'}"
-            class="inline-flex items-center justify-center w-7 h-7 rounded border font-bold text-xs select-none transition-colors
+            class="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded border font-bold text-xs select-none transition-colors
                    ${isExpanded
                        ? 'bg-sky-100 border-sky-300 text-sky-700 hover:bg-sky-200'
                        : 'bg-white border-gray-300 text-gray-600 hover:border-sky-400 hover:text-sky-600'}">
@@ -944,25 +946,25 @@ function buildRow(row) {
         </button>`;
     }
 
+    const levelLabel = depth === 1 ? 'Turunan wilayah' : depth > 1 ? 'Turunan wilayah lanjutan' : '';
     const rowBg = depth === 0
         ? 'hover:bg-sky-50'
         : (depth === 1 ? 'bg-sky-50/50 hover:bg-sky-100/60' : 'bg-violet-50/40 hover:bg-violet-100/50');
-    const borderStyle = depth > 0
-        ? `border-left: 3px solid ${depth === 1 ? '#7dd3fc' : '#c4b5fd'};` : '';
+    const borderColor = depth === 1 ? '#7dd3fc' : (depth > 1 ? '#c4b5fd' : 'transparent');
 
     return `<tr class="${rowBg} transition-colors">
-        <td class="py-3 pr-2" style="padding-left:${8 + indent}px; ${borderStyle}">
+        <td class="py-3 pr-2" style="padding-left:8px; border-left:3px solid ${borderColor};">
             <input type="checkbox" class="row-chk rounded border-gray-300 cursor-pointer"
                 value="${escH(key)}"
                 onchange="onRowCheck(this, ${row.metadata_id}, ${row.location_id}, ${depth})"
                 ${checked ? 'checked' : ''}>
         </td>
-        <td class="px-4 py-3 text-xs min-w-0 break-words" style="${depth > 0 ? 'padding-left:' + (16 + indent) + 'px' : ''}">
-            ${depth > 0 ? '<span class="text-gray-400 mr-1.5">↳</span>' : ''}
+        <td class="px-3 sm:px-4 py-3 text-xs min-w-0 break-words" style="padding-left: calc(12px + ${depth > 0 ? 'var(--row-indent)' : '0px'})">
+            ${depth > 0 ? `<span class="block sm:inline text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-0 sm:mr-1.5">↳ ${levelLabel}</span>` : ''}
             ${displayName}
             ${row.frekuensi_penerbitan ? `<span class="ml-1 text-gray-400 font-normal">(${escH(row.frekuensi_penerbitan)})</span>` : ''}
         </td>
-        <td class="px-3 py-3 text-center">
+        <td class="px-1 sm:px-3 py-3 text-center">
             <button type="button"
                     onclick="openMetadataModal(${row.metadata_id})"
                     title="Lihat detail metadata"
@@ -970,7 +972,7 @@ function buildRow(row) {
                 <i class="fas fa-circle-info text-sky-500 hover:text-sky-600 transition-colors"></i>
             </button>
         </td>
-        <td class="px-3 py-3 text-center">${detailBtn}</td>
+        <td class="px-1 sm:px-3 py-3 text-center">${detailBtn}</td>
     </tr>`;
 }
 
