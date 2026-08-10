@@ -195,45 +195,47 @@ $col2 = $allKlasifikasi->slice($half);
          class="lg:hidden bg-white border-t-2 border-stikom-accent shadow-xl max-h-[80vh] overflow-y-auto">
         <div class="max-w-7xl mx-auto px-4 py-4 space-y-0.5">
 
+            {{-- Klasifikasi (mobile) --}}
             <div x-data="{ open: false }">
                 <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-stikom hover:bg-stikom-accent/10 hover:text-stikom-accent transition-colors border-l-2 border-transparent hover:border-stikom-accent">
+                        class="w-full flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-stikom hover:bg-stikom-accent/10 hover:text-stikom-accent transition-colors border-l-2 border-transparent hover:border-stikom-accent [-webkit-tap-highlight-color:transparent]">
                     Klasifikasi
                     <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                <div x-show="open" class="mt-0.5 ml-4 space-y-0 max-h-56 overflow-y-auto pr-2">
+                <div x-show="open" class="mt-0.5 ml-4 space-y-1 max-h-56 overflow-y-auto pr-2">
                     @foreach($allKlasifikasi as $k)
                         <a href="{{ route('klasifikasi.show', ['klasifikasi' => Str::slug($k)]) }}"
-                           @click="mobileOpen = false"
-                           class="block px-4 py-2 text-sm text-gray-600 hover:text-stikom hover:bg-stikom-accent/10 border-l-2 border-transparent hover:border-stikom-accent transition-colors">{{ $k }}</a>
+                        @click="mobileOpen = false"
+                        class="block px-4 py-3 min-h-[44px] flex items-center text-sm text-gray-600 hover:text-stikom hover:bg-stikom-accent/10 active:text-stikom active:bg-stikom-accent/10 focus:text-stikom focus:bg-stikom-accent/10 focus:outline-none border-l-2 border-transparent hover:border-stikom-accent transition-colors [-webkit-tap-highlight-color:transparent]">{{ $k }}</a>
                     @endforeach
                 </div>
             </div>
 
+            {{-- Produk (mobile) --}}
             <div x-data="{ open: false }">
                 <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-stikom hover:bg-stikom-accent/10 hover:text-stikom-accent transition-colors border-l-2 border-transparent hover:border-stikom-accent">
+                        class="w-full flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-stikom hover:bg-stikom-accent/10 hover:text-stikom-accent transition-colors border-l-2 border-transparent hover:border-stikom-accent [-webkit-tap-highlight-color:transparent]">
                     Produk
                     <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                <div x-show="open" class="mt-0.5 ml-4 space-y-0">
+                <div x-show="open" class="mt-0.5 ml-4 space-y-1">
+                    <a href="{{ route('landing.data.series') }}" @click="mobileOpen = false"
+                    class="block px-4 py-3 min-h-[44px] flex items-center text-sm text-gray-600 hover:text-stikom hover:bg-stikom-accent/10 active:text-stikom active:bg-stikom-accent/10 focus:text-stikom focus:bg-stikom-accent/10 focus:outline-none border-l-2 border-transparent hover:border-stikom-accent transition-colors [-webkit-tap-highlight-color:transparent]">Data Series</a>
                     <a href="{{ route('data.index') }}" @click="mobileOpen = false"
-                       class="block px-4 py-2 text-sm text-gray-600 hover:text-stikom border-l-2 border-transparent hover:border-stikom-accent hover:bg-stikom-accent/10 transition-colors">Data Series</a>
-                    <a href="{{ route('data.index') }}" @click="mobileOpen = false"
-                       class="block px-4 py-2 text-sm text-gray-600 hover:text-stikom border-l-2 border-transparent hover:border-stikom-accent hover:bg-stikom-accent/10 transition-colors">Template Tampilan Data</a>
+                    class="block px-4 py-3 min-h-[44px] flex items-center text-sm text-gray-600 hover:text-stikom hover:bg-stikom-accent/10 active:text-stikom active:bg-stikom-accent/10 focus:text-stikom focus:bg-stikom-accent/10 focus:outline-none border-l-2 border-transparent hover:border-stikom-accent transition-colors [-webkit-tap-highlight-color:transparent]">Template Tampilan Data</a>
                 </div>
             </div>
 
             <a href="{{ route('bantuan') }}" @click="mobileOpen = false"
                 class="block px-4 py-3 text-sm font-semibold transition-colors border-l-2
                         {{ request()->routeIs('bantuan')
-                            ? 'text-stikom-accent border-stikom-accent bg-stikom-accent/10'
+                            ? 'text-stikom border-stikom-accent bg-stikom-accent/10'
                             : 'text-stikom border-transparent hover:bg-stikom-accent/10 hover:text-stikom-accent hover:border-stikom-accent' }}">
                     Bantuan
             </a>
@@ -241,7 +243,7 @@ $col2 = $allKlasifikasi->slice($half);
             <a href="{{ route('langganan') }}" @click="mobileOpen = false"
                 class="block px-4 py-3 text-sm font-semibold transition-colors border-l-2
                         {{ request()->routeIs('langganan')
-                            ? 'text-stikom-accent border-stikom-accent bg-stikom-accent/10'
+                            ? 'text-stikom border-stikom-accent bg-stikom-accent/10'
                             : 'text-stikom border-transparent hover:bg-stikom-accent/10 hover:text-stikom-accent hover:border-stikom-accent' }}">
                     Langganan
             </a>

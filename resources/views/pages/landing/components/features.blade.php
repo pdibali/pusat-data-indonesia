@@ -47,7 +47,7 @@
 
             @foreach($features as $i => $f)
                 <div class="group relative p-7 border-b border-r border-gray-200 hover:bg-stikom transition-all duration-300 cursor-default fade-up
-                            {{ $i >= 3 ? 'border-b-0' : '' }}
+                            {{ $i === 3 ? 'lg:border-b-0' : ($i === 4 ? 'sm:border-b-0' : '') }}
                             {{ ($i + 1) % 3 === 0 ? 'border-r-0' : '' }}
                             {{ $i === 2 ? 'sm:border-r-0 lg:border-r border-gray-200' : '' }}"
                      style="animation-delay: {{ $i * 0.08 }}s">
