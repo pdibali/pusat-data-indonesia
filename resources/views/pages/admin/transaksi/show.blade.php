@@ -73,59 +73,81 @@
             </div>
 
             @if($transaksi->metode_pembayaran === 'manual')
-            <div class="card-panel">
-                <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                    <i class="fas fa-money-bill-transfer text-gray-400 text-sm"></i>
-                    <h2 class="text-sm font-semibold text-gray-700">Transfer Manual</h2>
-                </div>
+                <div class="card-panel">
+                    <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                        <i class="fas fa-money-bill-transfer text-gray-400 text-sm"></i>
+                        <h2 class="text-sm font-semibold text-gray-700">Payment Proof</h2>
+                    </div>
 
-                <div class="px-6 py-4 space-y-2 text-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-500">Nama Pengirim</span>
-                        <span class="text-gray-800 font-medium">{{ $transaksi->nama_pengirim ?? '—' }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-500">Bank Pengirim</span>
-                        <span class="text-gray-800 font-medium">{{ $transaksi->bank_pengirim ?? '—' }}</span>
+                    <div class="px-6 py-4">
+                        @if($transaksi->bukti_transfer)
+                            @php $ext = strtolower(pathinfo($transaksi->bukti_transfer, PATHINFO_EXTENSION)); @endphp
+                            @if(in_array($ext, ['jpg', 'jpeg', 'png']))
+                                <div class="rounded-xl overflow-hidden border border-gray-200 mb-2 bg-gray-50">
+                                    <img src="{{ route('admin.transaksi.bukti', $transaksi) }}"
+                                        alt="Bukti Transfer"
+                                        class="w-full max-h-80 object-contain">
+                                </div>
+                            @else
+                                <div class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl mb-2 bg-gray-50">
+                                    <i class="fas fa-file-pdf text-red-400 text-2xl"></i>
+                                    <span class="text-sm text-gray-600">Bukti transfer (PDF)</span>
+                                </div>
+                            @endif
+                            <a href="{{ route('admin.transaksi.bukti', $transaksi) }}" target="_blank"
+                            class="text-xs text-blue-600 hover:underline font-medium">
+                                View Full Image →
+                            </a>
+                        @else
+                            <p class="text-xs text-gray-400">Bukti transfer belum diupload.</p>
+                        @endif
+
+                        <div class="mt-4 pt-4 border-t border-gray-100 space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">Nama Pengirim</span>
+                                <span class="text-gray-800 font-medium">{{ $transaksi->nama_pengirim ?? '—' }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">Bank Pengirim</span>
+                                <span class="text-gray-800 font-medium">{{ $transaksi->bank_pengirim ?? '—' }}</span>
+                            </div>
+                        </div>
+
+                        @if($transaksi->status === 'menunggu_verifikasi')
+                            {{-- Dua form kosong (cuma csrf), input & tombol dihubungkan via atribut form="" --}}
+                            <form id="form-verify" method="POST" action="{{ route('admin.transaksi.verify', $transaksi) }}">
+                                @csrf
+                            </form>
+                            <form id="form-reject" method="POST" action="{{ route('admin.transaksi.reject', $transaksi) }}">
+                                @csrf
+                            </form>
+
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <label class="text-xs font-medium text-gray-500 block mb-1">Admin Notes (Optional)</label>
+                                <textarea form="form-reject" name="catatan_admin" rows="2"
+                                        placeholder="Add notes about this review..."
+                                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+
+                                <div class="flex gap-2">
+                                    <button type="submit" form="form-verify"
+                                            class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition">
+                                        Confirm Approve
+                                    </button>
+                                    <button type="submit" form="form-reject"
+                                            class="flex-1 py-2.5 bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-semibold transition">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        @elseif($transaksi->catatan_admin)
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <p class="text-xs text-gray-500 mb-1">Catatan Admin</p>
+                                <p class="text-sm text-gray-700">{{ $transaksi->catatan_admin }}</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
-
-                <div class="px-6 pb-5">
-                    @if($transaksi->bukti_transfer)
-                    <a href="{{ route('admin.transaksi.bukti', $transaksi) }}" target="_blank"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition mb-4">
-                        <i class="fas fa-receipt text-xs"></i> Lihat Bukti Transfer
-                    </a>
-                    @else
-                    <p class="text-xs text-gray-400 mb-4">Bukti transfer belum diupload.</p>
-                    @endif
-
-                    @if($transaksi->status === 'menunggu_verifikasi')
-                    <div class="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-100">
-                        <form method="POST" action="{{ route('admin.transaksi.verify', $transaksi) }}">
-                            @csrf
-                            <button class="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
-                                <i class="fas fa-check text-xs mr-1"></i> Verifikasi & Aktifkan
-                            </button>
-                        </form>
-                        <form method="POST" action="{{ route('admin.transaksi.reject', $transaksi) }}" class="flex-1 flex gap-2">
-                            @csrf
-                            <input type="text" name="catatan_admin" placeholder="Alasan penolakan (opsional)"
-                                class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-                            <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition whitespace-nowrap">
-                                <i class="fas fa-times text-xs mr-1"></i> Tolak
-                            </button>
-                        </form>
-                    </div>
-                    @elseif($transaksi->catatan_admin)
-                    <div class="pt-3 border-t border-gray-100">
-                        <p class="text-xs text-gray-500 mb-1">Catatan Admin</p>
-                        <p class="text-sm text-gray-700">{{ $transaksi->catatan_admin }}</p>
-                    </div>
-                    @endif
-                </div>
-            </div>
-            @endif
+                @endif
 
             {{-- Masa Aktif Langganan --}}
             @if($transaksi->isSuccess())
