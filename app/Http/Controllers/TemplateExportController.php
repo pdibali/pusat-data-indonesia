@@ -501,20 +501,11 @@ class TemplateExportController extends Controller
 
             // Field label => [value, tinggi baris]
             $fields = [
-                'Alias'                  => [$m?->alias, 18],
-                'Klasifikasi'            => [$m?->klasifikasi?->nama_klasifikasi, 18],
                 'Konsep'                 => [$m?->konsep, 55],
                 'Definisi'               => [$m?->definisi, 55],
                 'Metodologi'             => [$m?->metodologi, 18],
                 'Penjelasan Metodologi'  => [$m?->penjelasan_metodologi, 55],
-                'Asumsi'                 => [$m?->asumsi, 40],
-                'Tipe Data'              => [$m?->tipe_data, 18],
-                'Satuan Data'            => [$meta['satuan'], 18],
-                'Frekuensi Penerbitan'   => [$m?->frekuensi_penerbitan, 18],
-                'Tahun Mulai Data'       => [$m?->tahun_mulai_data, 18],
-                'Tahun Data Tersedia'    => [$m?->tahun_data_tersedia, 18],
                 'Produsen Data'          => [$m?->produsen?->nama_produsen, 18],
-                'Tag'                    => [$m?->tag, 18],
             ];
 
             foreach ($fields as $label => [$value, $height]) {
@@ -597,20 +588,11 @@ class TemplateExportController extends Controller
             $m = $meta['model'] ?? null;
             $informasiData[] = [
                 'nama_metadata'          => $meta['nama'],
-                'alias'                  => $m?->alias,
-                'klasifikasi'            => $m?->klasifikasi?->nama_klasifikasi,
                 'konsep'                 => $m?->konsep,
                 'definisi'               => $m?->definisi,
                 'metodologi'             => $m?->metodologi,
                 'penjelasan_metodologi'  => $m?->penjelasan_metodologi,
-                'asumsi'                 => $m?->asumsi,
-                'tipe_data'              => $m?->tipe_data,
-                'satuan_data'            => $meta['satuan'],
-                'frekuensi_penerbitan'   => $m?->frekuensi_penerbitan,
-                'tahun_mulai_data'       => $m?->tahun_mulai_data,
-                'tahun_data_tersedia'    => $m?->tahun_data_tersedia,
                 'produsen_data'          => $m?->produsen?->nama_produsen,
-                'tag'                    => $m?->tag,
             ];
         }
 
