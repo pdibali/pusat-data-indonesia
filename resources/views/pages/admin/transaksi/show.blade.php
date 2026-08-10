@@ -126,7 +126,7 @@
                                 <label class="text-xs font-medium text-gray-500 block mb-1">Admin Notes (Optional)</label>
                                 <textarea form="form-reject" name="catatan_admin" rows="2"
                                         placeholder="Add notes about this review..."
-                                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+                                        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
 
                                 <div class="flex gap-2">
                                     <button type="submit" form="form-verify"

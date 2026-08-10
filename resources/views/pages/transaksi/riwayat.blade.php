@@ -260,11 +260,21 @@
                     $isExpired = $item->isExpired();
                     $isPayable = $item->isPayable();
                     $statusDot = match(true) {
-                        $item->status === 'success' => 'bg-emerald-500',
-                        $isPayable                  => 'bg-yellow-400',
-                        $isExpired                   => 'bg-gray-400',
-                        $item->status === 'failed'   => 'bg-red-500',
-                        default                      => 'bg-gray-400',
+                        $item->status === 'success'            => 'bg-emerald-500',
+                        $item->status === 'menunggu_verifikasi' => 'bg-blue-400',
+                        $isPayable                              => 'bg-yellow-400',
+                        $isExpired                              => 'bg-gray-400',
+                        $item->status === 'failed'              => 'bg-red-500',
+                        default                                 => 'bg-gray-400',
+                    };
+                    $statusLabel = match(true) {
+                        $item->status === 'success'            => ['text' => 'Berhasil',            'class' => 'text-emerald-600'],
+                        $item->status === 'menunggu_verifikasi' => ['text' => 'Menunggu verifikasi', 'class' => 'text-blue-600'],
+                        $isPayable                              => ['text' => 'Menunggu bayar',      'class' => 'text-yellow-600'],
+                        $isExpired                              => ['text' => 'Kedaluwarsa',         'class' => 'text-gray-400'],
+                        $item->status === 'failed'              => ['text' => 'Gagal',              'class' => 'text-red-500'],
+                        $item->status === 'cancelled'           => ['text' => 'Dibatalkan',          'class' => 'text-gray-400'],
+                        default                                 => ['text' => ucfirst($item->status),'class' => 'text-gray-400'],
                     };
                 @endphp
                 <button type="button"
@@ -276,9 +286,7 @@
                         <span class="block font-mono text-[11px] text-gray-400 truncate">{{ $item->order_id }}</span>
                         <span class="block font-medium text-gray-800 text-sm truncate">{{ $item->nama_layanan }}</span>
                         <span class="block text-sm font-semibold text-gray-700 mt-0.5">{{ $item->harga_format }}</span>
-                        @if($isExpired)
-                            <span class="block text-[11px] text-gray-400 mt-0.5">Kedaluwarsa</span>
-                        @endif
+                        <span class="block text-[11px] mt-0.5 {{ $statusLabel['class'] }}">{{ $statusLabel['text'] }}</span>
                     </span>
 
                     @if($isPayable)
