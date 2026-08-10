@@ -59,6 +59,9 @@ class TemplateExportController extends Controller
         }
 
         $spreadsheet = $this->buildSpreadsheet($payload);
+        $this->addInformasiDataSheet($spreadsheet, $payload);   // ← tambahan
+        $spreadsheet->setActiveSheetIndex(0);                    // tab "Data" tetap yang terbuka duluan
+
         $writer      = new Xlsx($spreadsheet);
         $filename    = $this->makeFilename($payload, 'xlsx');
 
@@ -108,10 +111,15 @@ class TemplateExportController extends Controller
         $payload = $this->buildPayload($request);
 
         if (!$payload['success']) {
-            return response()->json(['success' => false, 'message' => $payload['message']], 422);
+            return response()->json(['success' => false, 'message' => $payload['message']], 422, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
 
-        return response()->json($this->buildJsonResponse($payload));
+        return response()->json(
+            $this->buildJsonResponse($payload),
+            200,
+            [],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
     }
 
     // ══════════════════════════════════════════════════════════
@@ -163,8 +171,8 @@ class TemplateExportController extends Controller
         $metadataList = Metadata::whereIn('metadata_id', $metadataIds)
             ->where('status', 2)
             ->orderBy('nama')
-            ->with(['klasifikasi'])
-            ->get(['metadata_id', 'nama', 'klasifikasi_id', 'satuan_data', 'frekuensi_penerbitan']);
+            ->with(['klasifikasi', 'produsen'])   // ← load relasi penuh, bukan select kolom terbatas lagi
+            ->get();
 
         if ($metadataList->isEmpty()) {
             return ['success' => false, 'message' => 'Tidak ada metadata aktif.'];
@@ -260,6 +268,7 @@ class TemplateExportController extends Controller
                 'satuan'      => $m->satuan_data ?? '-',
                 'sumber'      => collect($metaRows)->pluck('rujukan')->filter(fn ($r) => $r !== '-')->first() ?? '-',
                 'rows'        => $metaRows,
+                'model'       => $m,
             ];
         }
 
@@ -447,6 +456,96 @@ class TemplateExportController extends Controller
         return $spreadsheet;
     }
 
+    // ══════════════════════════════════════════════════════════
+    // SHEET 2 — INFORMASI DATA (penjelasan metadata untuk awam)
+    // ══════════════════════════════════════════════════════════
+    private function addInformasiDataSheet(Spreadsheet $spreadsheet, array $p): void
+    {
+        $ws = $spreadsheet->createSheet();
+        $ws->setTitle('Informasi Data');
+
+        $C_HEADER_BG  = '1F4E78';
+        $C_SECTION_BG = 'FFC000'; // konsisten dengan warna sheet Data
+        $C_LABEL_BG   = 'F2F2F2';
+
+        $ws->getColumnDimension('A')->setWidth(28);
+        $ws->getColumnDimension('B')->setWidth(90);
+
+        // ── Judul sheet ─────────────────────────────────────
+        $ws->mergeCells('A1:B1');
+        $ws->setCellValue('A1', 'INFORMASI DATA');
+        $ws->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $C_HEADER_BG]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $ws->getRowDimension(1)->setRowHeight(26);
+
+        $r = 3;
+        $no = 1;
+
+        foreach ($p['grouped'] as $meta) {
+            /** @var Metadata|null $m */
+            $m = $meta['model'] ?? null;
+
+            // ── Header section per metadata ──────────────────
+            $ws->mergeCells("A{$r}:B{$r}");
+            $ws->setCellValue("A{$r}", "{$no}. {$meta['nama']}");
+            $ws->getStyle("A{$r}")->applyFromArray([
+                'font'    => ['bold' => true, 'size' => 11],
+                'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $C_SECTION_BG]],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+            ]);
+            $ws->getRowDimension($r)->setRowHeight(22);
+            $r++;
+
+            // Field label => [value, tinggi baris]
+            $fields = [
+                'Alias'                  => [$m?->alias, 18],
+                'Klasifikasi'            => [$m?->klasifikasi?->nama_klasifikasi, 18],
+                'Konsep'                 => [$m?->konsep, 55],
+                'Definisi'               => [$m?->definisi, 55],
+                'Metodologi'             => [$m?->metodologi, 18],
+                'Penjelasan Metodologi'  => [$m?->penjelasan_metodologi, 55],
+                'Asumsi'                 => [$m?->asumsi, 40],
+                'Tipe Data'              => [$m?->tipe_data, 18],
+                'Satuan Data'            => [$meta['satuan'], 18],
+                'Frekuensi Penerbitan'   => [$m?->frekuensi_penerbitan, 18],
+                'Tahun Mulai Data'       => [$m?->tahun_mulai_data, 18],
+                'Tahun Data Tersedia'    => [$m?->tahun_data_tersedia, 18],
+                'Produsen Data'          => [$m?->produsen?->nama_produsen, 18],
+                'Tag'                    => [$m?->tag, 18],
+            ];
+
+            foreach ($fields as $label => [$value, $height]) {
+                $value = ($value === null || trim((string) $value) === '') ? '-' : $value;
+
+                $ws->setCellValue("A{$r}", $label);
+                $ws->setCellValue("B{$r}", $value);
+
+                $ws->getStyle("A{$r}")->applyFromArray([
+                    'font'      => ['bold' => true, 'size' => 10],
+                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $C_LABEL_BG]],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D0D0D0']]],
+                ]);
+                $ws->getStyle("B{$r}")->applyFromArray([
+                    'font'      => ['size' => 10],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D0D0D0']]],
+                ]);
+                $ws->getRowDimension($r)->setRowHeight($height);
+                $r++;
+            }
+
+            // Spacer antar metadata
+            $r++;
+            $no++;
+        }
+
+        $ws->freezePane('A3');
+    }
+
     // ── Helper: terapkan style header ────────────────────────────
     private function applyHeaderStyle($ws, string $range): void
     {
@@ -493,6 +592,28 @@ class TemplateExportController extends Controller
             }
         }
 
+        $informasiData = [];
+        foreach ($p['grouped'] as $meta) {
+            $m = $meta['model'] ?? null;
+            $informasiData[] = [
+                'nama_metadata'          => $meta['nama'],
+                'alias'                  => $m?->alias,
+                'klasifikasi'            => $m?->klasifikasi?->nama_klasifikasi,
+                'konsep'                 => $m?->konsep,
+                'definisi'               => $m?->definisi,
+                'metodologi'             => $m?->metodologi,
+                'penjelasan_metodologi'  => $m?->penjelasan_metodologi,
+                'asumsi'                 => $m?->asumsi,
+                'tipe_data'              => $m?->tipe_data,
+                'satuan_data'            => $meta['satuan'],
+                'frekuensi_penerbitan'   => $m?->frekuensi_penerbitan,
+                'tahun_mulai_data'       => $m?->tahun_mulai_data,
+                'tahun_data_tersedia'    => $m?->tahun_data_tersedia,
+                'produsen_data'          => $m?->produsen?->nama_produsen,
+                'tag'                    => $m?->tag,
+            ];
+        }
+
         return [
             'success'   => true,
             'generated_at' => now()->toIso8601String(),
@@ -509,6 +630,7 @@ class TemplateExportController extends Controller
             ],
             'columns'   => array_column($p['columns'], 'label'),
             'data'      => $rows,
+            'informasi_data' => $informasiData,
         ];
     }
 

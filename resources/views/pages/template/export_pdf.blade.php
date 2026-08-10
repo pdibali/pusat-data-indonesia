@@ -282,6 +282,34 @@
         </table>
     </div>
 
+    <div style="page-break-before: always;"></div>
+    <h2 style="margin-top:50px; margin-bottom:20px;">Informasi Data</h2>
+
+    @foreach($grouped as $meta)
+        @php($m = $meta['model'] ?? null)
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:11px;">
+            <tr>
+                <td colspan="2" style="background:#FFC000; border:1px solid #000; padding:6px; font-weight:bold;">
+                    {{ $loop->iteration }}. {{ $meta['nama'] }}
+                </td>
+            </tr>
+            <tr><td style="width:180px; background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Alias</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->alias ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Klasifikasi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->klasifikasi?->nama_klasifikasi ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Konsep</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->konsep ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Definisi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->definisi ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Metodologi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->metodologi ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Penjelasan Metodologi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->penjelasan_metodologi ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Asumsi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->asumsi ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Tipe Data</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->tipe_data ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Satuan Data</td><td style="border:1px solid #ccc; padding:6px;">{{ $meta['satuan'] ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Frekuensi Penerbitan</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->frekuensi_penerbitan ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Tahun Mulai Data</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->tahun_mulai_data ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Tahun Data Tersedia</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->tahun_data_tersedia ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Produsen Data</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->produsen?->nama_produsen ?: '-' }}</td></tr>
+            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Tag</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->tag ?: '-' }}</td></tr>
+        </table>
+    @endforeach
+
     <p style="margin-top:12px; font-size:10px; color:#888; text-align:right;">
         Diekspor dari sistem pada {{ now()->format('d F Y, H:i:s') }}
     </p>
