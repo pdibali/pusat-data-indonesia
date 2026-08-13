@@ -38,7 +38,7 @@
                         ->filter()
                         ->values();
 
-                    $minV = $vals->min() ?: 0;
+                    $minV = 0;
                     $maxV = $vals->max() ?: 1;
                     $n    = $vals->count();
 

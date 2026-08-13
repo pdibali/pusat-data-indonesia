@@ -167,7 +167,7 @@
                                 ->map(fn($y) => isset($dataPoints[$y]) ? (float) $dataPoints[$y] : null)
                                 ->filter()->values();
 
-                            $minV = $vals->min() ?: 0;
+                            $minV = 0;
                             $maxV = $vals->max() ?: 1;
                             $n    = $vals->count();
 
@@ -339,9 +339,9 @@
                                         ->map(fn($y) => isset($dataPoints[$y]) ? (float) $dataPoints[$y] : null)
                                         ->filter()->values();
 
-                                    $minV = $vals->min() ?: 0;
+                                    $minV = 0;
                                     $maxV = $vals->max() ?: 1;
-                                    $n    = $vals->count();
+                                    $y = 84 - (($v - $minV) / max($maxV - $minV, 1)) * 72;
 
                                     $pts = $vals->map(function ($v, $idx) use ($n, $minV, $maxV) {
                                         $x = ($idx / max($n - 1, 1)) * 300;

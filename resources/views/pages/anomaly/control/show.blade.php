@@ -14,7 +14,7 @@
     </div>
 
     {{-- ── HEADER ──────────────────────────────────────────────── --}}
-<div class="flex items-start justify-between gap-3 flex-wrap">
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div class="flex items-center gap-3 flex-wrap">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
                              text-sm font-semibold"
@@ -36,11 +36,12 @@
                 @if($anomaly->status === \App\Models\Anomaly::STATUS_WARNING
                     && $data->workflow_status === \App\Models\Data::WORKFLOW_WARNING)
                 <form method="POST"
-                      action="{{ route('anomaly.control.submit_review', $data->id) }}">
+                      action="{{ route('anomaly.control.submit_review', $data->id) }}"
+                      class="w-full sm:w-auto">
                     @csrf
                     <button type="submit"
-                            class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg
-                                   font-semibold transition-colors">
+                            class="w-full sm:w-auto justify-center text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg
+                                   font-semibold transition-colors flex items-center">
                         <i class="fas fa-magnifying-glass mr-1"></i> Under Review
                     </button>
                 </form>
@@ -54,10 +55,10 @@
     </div>
 
     {{-- ── 2-COLUMN GRID ───────────────────────────────────────── --}}
-    <div class="grid md:grid-cols-3 gap-5">
+    <div class="grid md:grid-cols-3 gap-5 min-w-0">
 
         {{-- ── KOLOM KIRI (2/3) ───────────────────────────────── --}}
-        <div class="md:col-span-2 space-y-5">
+        <div class="md:col-span-2 space-y-5 min-w-0">
 
             {{-- Pesan anomali --}}
             @if($anomaly->anomaly_type !== \App\Models\Anomaly::TYPE_SOURCE_CONFLICT)
@@ -69,7 +70,7 @@
                     {{ $anomaly->message }}
                 </p>
                 @unless($anomaly->anomaly_type === \App\Models\Anomaly::TYPE_UNIT_CONFLICT)
-                <div class="mt-4 grid grid-cols-3 gap-4">
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div class="text-center p-3 rounded-lg bg-gray-50">
                         <p class="text-xs text-gray-400 mb-1">Nilai Sebelumnya</p>
                         <p class="text-lg font-bold text-gray-700 font-mono">
@@ -104,7 +105,7 @@
                         Metadata Inti
                     </span>
                 </div>
-                <dl class="grid grid-cols-2 md:grid-cols-3 gap-x-10 gap-y-3 text-sm">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 sm:gap-x-10 gap-y-3 text-sm">
                     <div>
                         <dt class="text-xs text-gray-400 font-medium">Nama Metadata</dt>
                         <dd class="text-gray-800 mt-0.5">{{ $data->metadata?->nama ?? '-' }}</dd>
@@ -132,7 +133,7 @@
                                 Data Ini
                             </span>
                         </div>
-                        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                             @php
                             $detailsA = [
                                 ['label'=>'Metadata', 'value'=> $data->metadata ? $data->metadata->getSubNamaForSatuan((int)($data->satuan_asal_id ?? $data->satuan_id ?? 0)) : '-'],
@@ -168,7 +169,7 @@
                                 Sumber Pembanding {{ $loop->iteration }}
                             </span>
                         </div>
-                        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                             @php
                             $detailsB = [
                                 ['label'=>'Metadata', 'value'=> $cd->metadata ? $cd->metadata->getSubNamaForSatuan((int)($cd->satuan_asal_id ?? $cd->satuan_id ?? 0)) : '-'],
@@ -206,7 +207,7 @@
                                 Satuan Sistem
                             </span>
                         </div>
-                        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                             @php
                             $detailsUnitA = [
                                 ['label'=>'Metadata', 'value'=> $data->metadata ? $data->metadata->getSubNamaForSatuan((int)($data->satuan_id ?? 0)) : '-'],
@@ -241,7 +242,7 @@
                                 Satuan Asli Sumber
                             </span>
                         </div>
-                        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                             @php
                             $detailsUnitB = [
                                 ['label'=>'Metadata', 'value'=> $data->metadata ? $data->metadata->getSubNamaForSatuan((int)($data->satuan_asal_id ?? 0)) : '-'],
@@ -272,7 +273,7 @@
                 {{-- Card lama, dipakai untuk tipe anomali selain source_conflict --}}
                 <div class="bg-white rounded-xl border border-gray-200 p-5">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Detail Data</p>
-                    <dl class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                         @php
                         $details = [
                             ['label'=>'Metadata', 'value'=> $data->metadata ? $data->metadata->getSubNamaForSatuan((int)($data->satuan_id ?? 0)) : '-'],
@@ -319,8 +320,8 @@
                 @if($seriesContext->isEmpty())
                     <p class="text-xs text-gray-400 text-center py-4">Tidak ada data historis untuk series ini.</p>
                 @else
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs">
+                <div class="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+                    <table class="w-full min-w-120 text-xs">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-2 py-2 text-left text-gray-500 font-medium">Periode</th>
@@ -422,7 +423,7 @@
                             <p class="text-xs text-gray-500 mt-0.5 italic">"{{ $audit->reason }}"</p>
                             @endif
                             @if($audit->old_value || $audit->new_value)
-                            <div class="mt-1.5 flex gap-3">
+                             <div class="mt-1.5 flex flex-col sm:flex-row gap-2 sm:gap-3">
                                 @if($audit->old_value)
                                 <div class="text-xs bg-red-50 text-red-700 px-2 py-1 rounded">
                                     <span class="font-medium">Sebelum:</span>
@@ -474,7 +475,7 @@
         </div>{{-- end kolom kiri --}}
 
         {{-- ── KOLOM KANAN (1/3) ──────────────────────────────── --}}
-        <div class="space-y-5">
+        <div class="space-y-5 min-w-0">
 
             {{-- Info anomali --}}
             <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3 text-xs">
@@ -679,8 +680,8 @@ async function loadSourceComparison() {
             </div>`;
         }
         html += `
-            <div class="overflow-x-auto">
-            <table class="w-full text-xs">
+            <div class="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+            <table class="w-full min-w-[900px] text-xs">
                 <thead class="bg-gray-50">
                 <tr>
                     <th class="px-2 py-2 text-left text-gray-500 font-medium">Rujukan</th>

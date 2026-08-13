@@ -11,8 +11,8 @@
         Satuan rujukan berbeda antar sumber untuk periode ini, periksa kemungkinan kesalahan normalisasi selain konflik nilainya.
     </div>
     @endunless
-    <div class="overflow-x-auto">
-        <table class="w-full text-xs">
+    <div class="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+        <table class="w-full min-w-225 text-xs">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-2 py-2 text-left text-gray-500 font-medium">Rujukan</th>

@@ -1,7 +1,7 @@
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
     {{-- Nama Lengkap --}}
-    <div style="display:flex; flex-direction:column; gap:6px;">
+    <div class="flex flex-col gap-1.5">
         <label class="text-xs font-medium text-gray-400">
             Nama lengkap <span class="text-red-400">*</span>
         </label>
