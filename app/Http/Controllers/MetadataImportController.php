@@ -97,12 +97,13 @@ class MetadataImportController extends Controller
         13 => 'tahun_pertama_rilis',
         14 => 'bulan_pertama_rilis',
         15 => 'tanggal_rilis',
-        16 => 'produsen_id',
+        16 => 'sumber_metadata_pertama',
         17 => 'tag',
         18 => 'flag_desimal',
         19 => 'tipe_group',
         20 => 'group_by',
         21 => '_status_excel',
+        22 => 'tahun_metadata',
     ];
 
     private const STRING_DASH = [
@@ -237,6 +238,7 @@ class MetadataImportController extends Controller
 
             $valid   = [];
             $skipped = [];
+            $produsenErrors = [];
             $seen    = [];
             $rowNum  = 2;
             $klasifikasiMap = \App\Models\Klasifikasi::pluck('nama_klasifikasi', 'klasifikasi_id')->toArray();
@@ -263,9 +265,44 @@ class MetadataImportController extends Controller
                 $seen[$key] = true;
 
                 $produsenNama = '-';
+                $pmVal = $r['sumber_metadata_pertama'] ?? null;
+                $produsenFound = false;
+                if (is_numeric($pmVal) && isset($produsenCache[(int)$pmVal])) {
+                    $produsenNama = $produsenCache[(int)$pmVal];
+                    $produsenFound = true;
+                } elseif (is_string($pmVal) && trim($pmVal) !== '') {
+                    $trim = trim($pmVal);
+                    // try exact match by name in cache (case-sensitive)
+                    $found = array_search($trim, $produsenCache, true);
+                    if ($found !== false) {
+                        $produsenNama = $produsenCache[$found];
+                        $produsenFound = true;
+                    } else {
+                        // case-insensitive search
+                        foreach ($produsenCache as $id => $name) {
+                            if (strcasecmp($name, $trim) === 0) {
+                                $produsenNama = $name;
+                                $produsenFound = true;
+                                break;
+                            }
+                        }
+                    }
+                }
 
-                if (!empty($r['produsen_id']) && isset($produsenCache[$r['produsen_id']])) {
-                    $produsenNama = $produsenCache[$r['produsen_id']];
+                // If produsen not found, mark as skipped/error so it won't be counted as importable
+                if (! $produsenFound) {
+                    $skipped[] = [
+                        'row'    => $rowNum,
+                        'nama'   => $this->smartNormalizeWilayah($r['nama']),
+                        'reason' => 'Produsen tidak ditemukan',
+                    ];
+                    $produsenErrors[] = [
+                        'row' => $rowNum,
+                        'nama' => $this->smartNormalizeWilayah($r['nama']),
+                        'produsen_input' => $pmVal,
+                    ];
+                    $rowNum++;
+                    continue;
                 }
 
                 $valid[] = [
@@ -277,6 +314,7 @@ class MetadataImportController extends Controller
                     'satuan_data'      => $r['satuan_data'],
                     'tahun_mulai_data' => $r['tahun_mulai_data'],
                     'frekuensi'        => $r['frekuensi_penerbitan'],
+                    'tahun_metadata'   => $r['tahun_metadata'] ?? '-',
                     'produsen'         => $produsenNama,
                     'tag'              => $r['tag'],
                     'exists_in_db'     => isset($existingInDb[$key]),
@@ -284,7 +322,6 @@ class MetadataImportController extends Controller
 
                 $rowNum++;
             }
-
             return response()->json([
                 'success'      => true,
                 'total_rows'   => count($valid) + count($skipped),
@@ -294,6 +331,8 @@ class MetadataImportController extends Controller
                 'skipped'      => count($skipped),
                 'rows'         => $valid,
                 'skipped_rows' => $skipped,
+                'produsen_errors_count' => count($produsenErrors),
+                'produsen_errors' => $produsenErrors,
             ]);
 
         } catch (\Exception $e) {
@@ -330,21 +369,16 @@ class MetadataImportController extends Controller
             $skipped  = 0;
             $toInsert = [];
 
-            foreach ($toInsert as $row) {
-                $exists = DB::table('produsen_data')
-                    ->where('produsen_id', $row['produsen_id'])
-                    ->exists();
+            // pre-check removed; we'll validate produsen existence per-row during processing
 
-                if (!$exists) {
-                    dd('INVALID PRODUSEN', $row);
-                }
-            }
+            $errorRows = [];
 
             DB::transaction(function () use (
                 $filePath, $skipExisting, $defaultProdusenId,
                 $userId, $now, $totalRows,
                 &$existingInDb,
-                &$seen, &$inserted, &$skipped, &$toInsert
+                &$seen, &$inserted, &$skipped, &$toInsert,
+                &$errorRows
             ) {
                 for ($startRow = 2; $startRow <= $totalRows; $startRow += self::READ_CHUNK) {
                     $endRow = min($startRow + self::READ_CHUNK - 1, $totalRows);
@@ -364,24 +398,49 @@ class MetadataImportController extends Controller
                         array_shift($chunkRows);
                     }
 
+                    $rowIndex = $startRow;
                     foreach ($chunkRows as $raw) {
-                        if (empty(array_filter($raw, fn($v) => $v !== null && $v !== ''))) continue;
+                        if (empty(array_filter($raw, fn($v) => $v !== null && $v !== ''))) { $rowIndex++; continue; }
 
                         $r   = $this->parseRow($raw);
                         $key = $this->dedupKey($r['nama']);
 
-                        if (isset($seen[$key]))                          { $skipped++; continue; }
+                        if (isset($seen[$key])) { $skipped++; $rowIndex++; continue; }
                         $seen[$key] = true;
 
-                        if ($skipExisting && isset($existingInDb[$key])) { $skipped++; continue; }
-                        
-                        $produsenId = is_numeric($r['produsen_id']) ? (int)$r['produsen_id'] : null;
+                        if ($skipExisting && isset($existingInDb[$key])) { $skipped++; $rowIndex++; continue; }
 
-                        $produsenId = $produsenId ?? $defaultProdusenId ?? 999;
+                        // Resolve produsen input: accept numeric id or produsen name
+                        $produsenId = null;
+                        $pmVal = $r['sumber_metadata_pertama'] ?? null;
+                        if (is_numeric($pmVal)) {
+                            $produsenId = (int) $pmVal;
+                        } elseif (is_string($pmVal) && trim($pmVal) !== '') {
+                            $p = ProdusenData::whereRaw('LOWER(nama_produsen) = ?', [strtolower(trim($pmVal))])->first();
+                            if ($p) $produsenId = $p->produsen_id;
+                        }
 
-                        if (!$produsenId) { 
-                            $skipped++; 
-                            continue; 
+                        // Validate produsen exists; fallback to defaultProdusenId if provided and valid
+                        $validProdusen = false;
+                        if ($produsenId && ProdusenData::where('produsen_id', $produsenId)->exists()) {
+                            $validProdusen = true;
+                        }
+
+                        if (! $validProdusen && $defaultProdusenId && ProdusenData::where('produsen_id', $defaultProdusenId)->exists()) {
+                            $produsenId = $defaultProdusenId;
+                            $validProdusen = true;
+                        }
+
+                        if (! $validProdusen) {
+                            $skipped++;
+                            $errorRows[] = [
+                                'row' => $rowIndex,
+                                'nama' => $r['nama'] ?? null,
+                                'produsen_input' => $pmVal,
+                                'reason' => 'Produsen tidak ditemukan',
+                            ];
+                            $rowIndex++;
+                            continue;
                         }
 
                         $toInsert[] = $this->buildRow($r, $produsenId, $userId, $now);
@@ -391,6 +450,7 @@ class MetadataImportController extends Controller
                             $inserted += count($toInsert);
                             $toInsert  = [];
                         }
+                        $rowIndex++;
                     }
 
                     unset($chunkRows);
@@ -407,6 +467,8 @@ class MetadataImportController extends Controller
                 'success'  => true,
                 'inserted' => $inserted,
                 'skipped'  => $skipped,
+                'error_count' => count($errorRows),
+                'errors'   => $errorRows,
                 'message'  => "$inserted metadata berhasil diimport. $skipped baris dilewati.",
                 'redirect' => route('metadata.approval'),
             ]);
@@ -513,7 +575,9 @@ class MetadataImportController extends Controller
             'bulan_pertama_rilis'    => is_numeric($r['bulan_pertama_rilis']) ? (int)$r['bulan_pertama_rilis'] : null,
             'tanggal_rilis'          => is_numeric($r['tanggal_rilis'])       ? (int)$r['tanggal_rilis']       : null,
 
-            'produsen_id'            => $produsenId,
+            'sumber_metadata_pertama'            => $produsenId,
+
+            'tahun_metadata'         => is_numeric($r['tahun_metadata']) ? (int)$r['tahun_metadata'] : 2026,
 
             'tag'                    => $r['tag'],
 

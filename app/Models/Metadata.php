@@ -31,7 +31,8 @@ class Metadata extends Model
         'tahun_pertama_rilis',
         'bulan_pertama_rilis',
         'tanggal_rilis',
-        'produsen_id',
+        'sumber_metadata_pertama',
+        'tahun_metadata',
         'tag',
         'flag_desimal',
         'tipe_group',
@@ -52,7 +53,8 @@ class Metadata extends Model
         'flag_desimal'        => 'integer',
         'status'              => 'integer',
         'klasifikasi_id'      => 'integer',
-        'produsen_id'         => 'integer',
+        'sumber_metadata_pertama'         => 'integer',
+        'tahun_metadata'        => 'integer',
         'group_by'            => 'integer',
         'user_id'             => 'integer',
         'is_free'             => 'boolean',
@@ -73,7 +75,7 @@ class Metadata extends Model
 
     public function produsen()
     {
-        return $this->belongsTo(ProdusenData::class, 'produsen_id', 'produsen_id');
+        return $this->belongsTo(ProdusenData::class, 'sumber_metadata_pertama', 'produsen_id');
     }
 
     public function groupParent()

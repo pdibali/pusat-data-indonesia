@@ -420,7 +420,7 @@ class LandingController extends Controller
                 $query->whereHas('klasifikasi', fn($q) => $q->where('nama_klasifikasi', $klasifikasi));
             })
             ->with(['klasifikasi', 'produsen'])
-            ->select('metadata_id', 'nama', 'klasifikasi_id', 'produsen_id', 'satuan_data', 'frekuensi_penerbitan', 'tahun_mulai_data', 'tag')
+            ->select('metadata_id', 'nama', 'klasifikasi_id', 'sumber_metadata_pertama as produsen_id', 'satuan_data', 'frekuensi_penerbitan', 'tahun_mulai_data', 'tag')
             ->limit(150) // naikkan dikit karena hasil sekarang lebih luas
             ->get();
 

@@ -133,7 +133,9 @@ class SubscriptionLimitsTest extends TestCase
 
     public function test_it_blocks_template_creation_when_limit_reached(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'group_id' => 3,
+        ]);
 
         $package = Layanan::create([
             'nama_layanan' => 'Paket Personal Template',

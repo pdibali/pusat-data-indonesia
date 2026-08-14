@@ -199,6 +199,20 @@
                         @enderror
                     </div>
 
+                    {{-- TAHUN METADATA --}}
+                    <div>
+                        <label class="block font-medium text-sm mb-1">
+                            Tahun Metadata
+                        </label>
+                        <input type="number" name="tahun_metadata" value="{{ old('tahun_metadata', 2026) }}"
+                            min="1900" max="2100"
+                            class="w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-sky-400 px-2 py-2 text-xs"
+                            placeholder="cth: 2026">
+                        @error('tahun_metadata')
+                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     {{-- FREKUENSI PENERBITAN --}}
                     <div>
                         <label class="block font-medium text-sm mb-1">
@@ -541,6 +555,7 @@
 
             {{-- ── RESULT IMPORT ── --}}
             <div id="importResult" class="hidden mt-4"></div>
+            <div id="importErrors" class="hidden mt-4"></div>
 
         </div>
 
@@ -1063,6 +1078,33 @@ async function doImport() {
                 </div>`;
             if (importResultEl) importResultEl.classList.remove('hidden');
             if (btnImport) btnImport.classList.add('hidden');
+            // show any row-level errors returned by server
+            if (json.error_count && Array.isArray(json.errors) && json.errors.length > 0) {
+                const importErrorsEl = safeGet('importErrors');
+                if (importErrorsEl) {
+                    importErrorsEl.innerHTML = `
+                        <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                            <p class="font-semibold">Beberapa baris tidak diimport</p>
+                            <p class="text-xs mt-1">${json.error_count} baris gagal karena produsen tidak ditemukan.</p>
+                            <div class="mt-3 overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead class="bg-yellow-100 text-yellow-800 text-left"><tr>
+                                        <th class="px-3 py-2">Row</th>
+                                        <th class="px-3 py-2">Nama</th>
+                                        <th class="px-3 py-2">Produsen Input</th>
+                                        <th class="px-3 py-2">Alasan</th>
+                                    </tr></thead>
+                                    <tbody>` + json.errors.map(e => `
+                                        <tr>
+                                            <td class="px-3 py-2 text-gray-600">${escHtml(e.row)}</td>
+                                            <td class="px-3 py-2 text-gray-800">${escHtml(e.nama)}</td>
+                                            <td class="px-3 py-2 text-gray-700">${escHtml(e.produsen_input)}</td>
+                                            <td class="px-3 py-2 text-yellow-900">${escHtml(e.reason)}</td>
+                                        </tr>
+                                    `).join('') + `</tbody></table></div></div>`;
+                    importErrorsEl.classList.remove('hidden');
+                }
+            }
         } else {
             showImportAlert('error', json.message || 'Import gagal.');
         }
@@ -1083,6 +1125,11 @@ function renderStats(json) {
         { label: 'Sudah di DB',   value: json.dup_db,     color: '#fef3c7', text: '#92400e' },
         { label: 'Dilewati',      value: json.skipped,    color: '#f3f4f6', text: '#6b7280' },
     ];
+    // if there are produsen errors, add a badge
+    if (json.produsen_errors_count && json.produsen_errors_count > 0) {
+        stats.push({ label: 'Produsen Tidak Cocok', value: json.produsen_errors_count, color: '#fff7ed', text: '#c2410c' });
+    }
+
     document.getElementById('statsBar').innerHTML = stats.map(s =>
         `<div class="rounded-lg p-3 text-center" style="background:${s.color};">
             <p class="text-2xl font-bold" style="color:${s.text};">${s.value}</p>
@@ -1121,6 +1168,7 @@ function renderPreviewTable(rows) {
                 <td class="px-3 py-2.5 text-gray-600">${escHtml(r.tahun_mulai_data)}</td>
                 <td class="px-3 py-2.5 text-gray-500 max-w-32 truncate" title="${escHtml(r.produsen)}">
                     ${escHtml(r.produsen)}
+                    ${(!r.produsen || r.produsen === '-' ) ? '<div class="text-xs text-yellow-800 mt-1"><i class="fas fa-exclamation-triangle"></i> Produsen tidak ditemukan</div>' : ''}
                 </td>
                 <td class="px-3 py-2.5 text-center">
                     ${r.exists_in_db
