@@ -387,7 +387,23 @@ class DataImport
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            throw $e;
+
+            $dbMessage = $e->getMessage();
+
+            return [
+                'success'      => false,
+                'imported'     => $this->imported,
+                'skipped'      => $this->skipped,
+                'errors'       => count($this->errors),
+                'skipped_meta' => count(array_unique(array_column($this->invalid_metadata, 'metadata_id'))),
+                'skipped_satuan' => count($this->invalid_satuan),
+                'anomalies_created' => $this->anomaliesCreated,
+                'message'      => 'Gagal mengimpor data: ' . $dbMessage,
+                'db_error'     => $dbMessage,
+                'error_rows'   => $this->errors,
+                'invalid_metadata_rows' => $this->invalid_metadata,
+                'invalid_satuan_rows'   => $this->invalid_satuan,
+            ];
         }
 
         return [
@@ -990,6 +1006,16 @@ class DataImport
         $rujukanId  = ($columns['rujukan_id'] !== null && isset($row[$columns['rujukan_id']]))
             ? (int) $row[$columns['rujukan_id']]
             : null;
+
+        // Validasi: jika ada rujukan_id tapi tidak ada di cache (tidak ditemukan di DB),
+        // catat sebagai error dan skip seluruh baris.
+        if ($rujukanId !== null && $rujukanId !== 0 && !isset($this->rujukanCache[$rujukanId])) {
+            $errors[] = [
+                'message' => "Baris $rowNum: rujukan_id '$rujukanId' tidak ditemukan.",
+                'row'     => $rowNum,
+            ];
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+        }
         if ($locationId !== null && $locationId !== 0 && !DB::table('location')->where('location_id', $locationId)->exists()) {
         if (!isset($this->locationCache[$locationId])) {
             $errors[] = [

@@ -75,6 +75,7 @@
 
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">Rujukan <span class="text-red-500">*</span></label>
+                    <p class="mt-1 text-xs text-gray-400">Produsen akan terisi otomatis berdasarkan pilihan Rujukan jika tidak diisi manual.</p>
                     <select id="rujukan_id" name="rujukan_id" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" required>
                         <option value="">Pilih rujukan...</option>
                         @foreach($rujukanList as $rujukan)
@@ -84,9 +85,10 @@
                         @endforeach
                     </select>
                     <input type="hidden" name="produsen_id" id="hiddenProdusenId" value="{{ old('produsen_id', $datum->produsen_id) }}">
-                    <div id="produsenInfo" class="hidden mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-md text-xs text-emerald-700 flex items-center gap-2">
+                    <div id="produsenInfo" class="{{ $datum->produsen ? '' : 'hidden' }} mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-md text-xs text-emerald-700 flex items-center gap-2">
                         <i class="fa-solid fa-industry text-emerald-500"></i>
-                        Produsen: <span id="produsenInfoText" class="font-semibold ml-1"></span>
+                        Produsen: <span id="produsenInfoText" class="font-semibold ml-1">{{ $datum->produsen?->nama_produsen ?? '' }}</span>
+                        <span class="text-emerald-400 ml-1">(otomatis dari rujukan)</span>
                     </div>
                     @error('rujukan_id')
                         <p class="mt-1 text-xs text-red-500"><i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}</p>

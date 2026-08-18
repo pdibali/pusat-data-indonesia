@@ -173,7 +173,7 @@ class MetadataController extends Controller
             'ID', 'Nama', 'Alias', 'Konsep', 'Definisi', 'Klasifikasi', 'Asumsi',
             'Metodologi', 'Penjelasan Metodologi', 'Tipe Data', 'Satuan Data',
             'Tahun Mulai Data', 'Tahun Metadata', 'Frekuensi Penerbitan', 'Tahun Data Tersedia',
-            'Bulan Pertama Rilis', 'Tanggal Rilis', 'Produsen Id', 'Tag',
+            'Bulan Pertama Rilis', 'Tanggal Rilis', 'Sumber Metadata Pertama', 'Tag',
             'Flag Desimal', 'Tipe Group', 'Group By', 'Status',
         ];
 
@@ -357,7 +357,8 @@ class MetadataController extends Controller
                     $row = [
                         'metadata_id'  => $metaId,
                         'nama_metadata'=> $meta->nama,
-                        'satuan'       => $meta->satuan_data,
+                        'satuan_metadata'       => $meta->satuan_data,
+                        'satuan_rujukan' => null,
                         'location_id' => $this->buildKodeWilayah($loc),
                         'nama_wilayah'  => $namaLokasi,
                         'rujukan_id'    => null,
@@ -375,7 +376,8 @@ class MetadataController extends Controller
                 $row = [
                     'metadata_id'  => $metaId,
                     'nama_metadata'=> $meta->nama,
-                    'satuan'       => $meta->satuan_data,
+                    'satuan_metadata'       => $meta->satuan_data,
+                    'satuan_rujukan' => null,
                     'location_id' => '',
                     'nama_wilayah'  => null,
                     'rujukan_id'    => null,
@@ -388,8 +390,8 @@ class MetadataController extends Controller
             $endIdx = count($excelRows) - 1;
             if ($endIdx >= $startIdx) {
                 $metaRowRanges[] = [
-                    'start'        => $startIdx + 4, // +4 karena data mulai di baris ke-4 sheet
-                    'end'          => $endIdx + 4,
+                    'start'        => $startIdx + 5, // +5 karena data mulai di baris ke-5 sheet
+                    'end'          => $endIdx + 5,
                     'flag_desimal' => (int) ($meta->flag_desimal ?? 0),
                 ];
             }
@@ -446,7 +448,8 @@ class MetadataController extends Controller
         $fixedHeaders = [
             ['label' => 'metadata_id',   'width' => 13, 'note' => 'ID metadata (otomatis, jangan diubah)'],
             ['label' => 'nama_metadata', 'width' => 40, 'note' => 'Nama metadata (otomatis, jangan diubah)'],
-            ['label' => 'satuan',        'width' => 20, 'note' => 'Satuan metadata'],
+            ['label' => 'satuan_metadata',        'width' => 20, 'note' => 'Satuan metadata'],
+            ['label' => 'satuan_rujukan',        'width' => 20, 'note' => 'Satuan rujukan'],
             ['label' => 'location_id',   'width' => 13, 'note' => 'ID lokasi dari tabel dimensi lokasi'],
             ['label' => 'nama_wilayah',   'width' => 40, 'note' => 'Nama lokasi (referensi, boleh dikosongkan)'],
             ['label' => 'rujukan_id',    'width' => 15, 'note' => 'ID rujukan dari tabel rujukan'],
@@ -504,7 +507,8 @@ class MetadataController extends Controller
 
                 $ws->setCellValue('A' . $rowNum, $row['metadata_id']);
                 $ws->setCellValue('B' . $rowNum, $row['nama_metadata']);
-                $ws->setCellValue('C' . $rowNum, $row['satuan']);
+                $ws->setCellValue('C' . $rowNum, $row['satuan_metadata']);
+                $ws->setCellValue('D' . $rowNum, $row['satuan_rujukan']);
                 $ws->setCellValue('D' . $rowNum, $row['location_id']);
                 $ws->setCellValue('E' . $rowNum, $row['nama_wilayah']);
                 $ws->setCellValue('F' . $rowNum, $row['rujukan_id']);

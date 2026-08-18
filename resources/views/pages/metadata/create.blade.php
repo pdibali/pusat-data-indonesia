@@ -329,12 +329,12 @@
                     {{-- PRODUSEN DATA --}}
                     <div>
                         <label class="block font-medium text-sm mb-1">
-                            Produsen Data <span class="text-red-500">*</span>
+                            Sumber Metadata Pertama <span class="text-red-500">*</span>
                         </label>
                         <select name="produsen_id"  placeholder="Pilih produsen..." autocomplete="off"
                                 class="tom-select w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2
                                        focus:ring-sky-400 text-xs">
-                            <option value="">-- Pilih Produsen Data --</option>
+                            <option value="">-- Pilih Sumber Metadata Pertama --</option>
                             @foreach($produsen as $item)
                                 <option value="{{ $item->produsen_id }}"
                                     {{ old('produsen_id') == $item->produsen_id ? 'selected' : '' }}>

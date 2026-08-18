@@ -410,7 +410,10 @@ const UI = {
     },
     setEmpty(visible) {
         document.getElementById('emptyEl').style.display = visible ? 'flex' : 'none';
-        if (visible) this.setCanvas(false);
+        if (visible) {
+            this.setCanvas(false);
+            document.getElementById('skeletonEl').style.display = 'none';
+        }
     },
     setCanvas(visible) {
         document.getElementById('mainChart').style.display = visible ? 'block' : 'none';
@@ -514,7 +517,9 @@ const DataChart = {
      * lalu render langsung ke canvas.
      */
     async load() {
-        if (!APP_CONFIG.metaId || !APP_CONFIG.locId) {
+        if (APP_CONFIG.metaId === null || APP_CONFIG.metaId === undefined ||
+            APP_CONFIG.locId  === null || APP_CONFIG.locId  === undefined) {
+            UI.setSkeleton(false);
             UI.setEmpty(true);
             return;
         }

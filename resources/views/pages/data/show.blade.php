@@ -3,9 +3,32 @@
 @section('content')
 <div class="py-6">
 
-    <a href="{{ url()->previous() }}"
+    @php
+        $backUrl = route('data.index');
+        // Jika ada parameter from=approval, prioritaskan kembali ke halaman approval
+        if (request()->get('from') === 'approval') {
+            $backUrl = route('data.approval');
+        } else {
+            // otherwise try to use previous URL only if it's a GET route on this app
+            $prev = url()->previous();
+            if ($prev && $prev !== request()->fullUrl()) {
+                try {
+                    $prevRequest = \Illuminate\Http\Request::create($prev);
+                    $matched = app('router')->getRoutes()->match($prevRequest);
+                    $methods = $matched->methods();
+                    if (in_array('GET', $methods)) {
+                        $backUrl = $prev;
+                    }
+                } catch (\Exception $e) {
+                    // fallback to index
+                }
+            }
+        }
+    @endphp
+
+    <a href="{{ $backUrl }}"
        class="flex items-center gap-1 font-semibold text-sky-600 ps-4 mb-4 hover:text-sky-900 text-sm transition-colors">
-        <i class="fas fa-angle-left"></i> Kembali ke Data
+        <i class="fas fa-angle-left"></i> Kembali
     </a>
 
     {{-- HEADER CARD --}}
@@ -144,6 +167,19 @@
                     <p class="text-sm text-gray-600">{{ $datum->rujukan->nama_rujukan }}</p>
                 @else
                     <p class="text-sm text-gray-400">Data rujukan tidak ditemukan.</p>
+                @endif
+            </div>
+
+            {{-- Produsen Data --}}
+            <div class="bg-white rounded-xl shadow p-5">
+                <h2 class="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                    <i class="fas fa-link text-rose-500"></i> Produsen Data
+                </h2>
+
+                @if($datum->produsen)
+                    <p class="text-sm text-gray-600">{{ $datum->produsen->nama_produsen }}</p>
+                @else
+                    <p class="text-sm text-gray-400">Data produsen tidak ditemukan.</p>
                 @endif
             </div>
 

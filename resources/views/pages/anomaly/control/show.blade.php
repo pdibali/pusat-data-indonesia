@@ -115,7 +115,7 @@
                         <dd class="text-gray-800 mt-0.5">{{ $data->metadata?->satuan_data ?? '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs text-gray-400 font-medium">Produsen Metadata</dt>
+                        <dt class="text-xs text-gray-400 font-medium">Sumber Metadata Pertama</dt>
                         <dd class="text-gray-800 mt-0.5">{{ $data->metadata?->produsen?->nama_produsen ?? '-' }}</dd>
                     </div>
                 </dl>
