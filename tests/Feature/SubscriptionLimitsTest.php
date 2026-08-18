@@ -8,6 +8,7 @@ use App\Models\Transaksi;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Services\SessionLimitService;
+use Database\Seeders\GroupSeeder;
 use App\Services\SubscriptionLimitsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -16,6 +17,12 @@ use Tests\TestCase;
 class SubscriptionLimitsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(GroupSeeder::class);
+    }
 
     public function test_it_enforces_concurrent_session_limit_for_personal_packages(): void
     {
