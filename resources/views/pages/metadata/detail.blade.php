@@ -300,6 +300,11 @@
                         <p class="text-gray-700 font-medium">{{ $metadata->tahun_mulai ?? '-' }}</p>
                     </div>
 
+                        <div>
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Tahun Metadata</p>
+                            <p class="text-gray-700 font-medium">{{ $metadata->tahun_metadata ?? '-' }}</p>
+                        </div>
+
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Frekuensi Penerbitan</p>
                         <span class="bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -355,11 +360,10 @@
                       class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0">
                     <i class="fas fa-address-card"></i>
                 </span>
-                Penanggung Jawab
+                Sumber Metadata Pertama
             </h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
                 <div class="col-span-4">
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Produsen Data</p>
                     <p class="text-gray-800 font-semibold">{{ $metadata->produsen->nama_produsen ?? '-' }}</p>
                 </div>
             </div>

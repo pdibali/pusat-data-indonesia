@@ -742,7 +742,12 @@ class TemplateController extends Controller
             ->where('status', Metadata::STATUS_ACTIVE)
             ->firstOrFail();
 
-        $location = Location::find($locationId);
+        // Support special location_id = 0 as "Indonesia" (may be stored as sentinel)
+        if ((string) $locationId === '0' || $locationId === 0) {
+            $location = (object) ['location_id' => 0, 'nama_wilayah' => 'Indonesia'];
+        } else {
+            $location = Location::find($locationId);
+        }
 
         // Ambil sumber dari data-rujukan_id-produsen_id, BUKAN dari metadata->produsen_id
         $dataRow = Data::where('metadata_id', $metadataId)
@@ -1076,9 +1081,9 @@ class TemplateController extends Controller
         $timeIdMap  = $this->resolveTimeIds($columns, $request->frekuensi);
         $allTimeIds = array_values(array_filter(array_column($timeIdMap, 'time_id')));
     
-        // ── Semua location_id unik di seluruh template ────────
+        // ── Semua location_id unik di seluruh template (keep 0 for Indonesia)
         $allLocationIds = array_unique(array_merge(...array_values($metaLocationMap)));
-        $allLocationIds = array_values(array_filter($allLocationIds));
+        $allLocationIds = array_values(array_filter($allLocationIds, fn($v) => $v !== null && $v !== ''));
     
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
     
@@ -1094,8 +1099,12 @@ class TemplateController extends Controller
         if (!empty($allLocationIds)) {
             $dataQuery->whereIn('location_id', $allLocationIds);
         }
-    
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id']);
+
+        // Pastikan diambil berdasarkan tanggal input terbaru dulu sehingga
+        // sumber (produsen) yang dipilih adalah yang terbaru, konsisten dengan grafik.
+        $dataQuery->orderByDesc('date_inputed');
+
+        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
     
         // Index: [metadata_id][location_id][time_id] = value
         $dataIndex    = [];
@@ -1103,9 +1112,14 @@ class TemplateController extends Controller
     
         
         foreach ($allData as $d) {
-            $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
+            // Karena $allData sudah di-orderByDesc('date_inputed'), kita ingin
+            // "first-wins" — baris terbaru harus tetap dipakai jika ada bentrokan.
+            if (!isset($dataIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
+            }
+
             $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
-            if ($namaProdusen) {
+            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
                 $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
         }
@@ -1150,10 +1164,18 @@ class TemplateController extends Controller
                 }
             }
     
-                // Sumber
+                // Sumber — pilih produsen yang relevan.
                 $rujukan = '-';
                 if ($locId && isset($rujukanIndex[$mId][$locId])) {
+                    // Untuk lokasi spesifik: ambil produsen pertama yang ada (first-wins)
                     $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($rujukanIndex[$mId])) {
+                    // Untuk 'Semua Wilayah' (locId null) — ambil produsen pertama dari
+                    // semua lokasi yang punya rujukan, mempertahankan ordering dari rujukanIndex
+                    $rujukan = collect($rujukanIndex[$mId])
+                        ->map(fn($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
                 }
     
                 $rows[] = [
@@ -1322,7 +1344,7 @@ class TemplateController extends Controller
         $timeIdMap  = $this->resolveTimeIds($columns, $request->frekuensi);
         $allTimeIds = array_values(array_filter(array_column($timeIdMap, 'time_id')));
 
-        // Kumpulkan semua location_ids unik
+        // Kumpulkan semua location_ids unik (keep 0 for Indonesia)
         $allLocationIds = [];
         foreach ($metadataIds as $mId) {
             $locs = $metaLocMap[(string)$mId] ?? [];
@@ -1330,7 +1352,8 @@ class TemplateController extends Controller
                 $allLocationIds[] = (int)$lid;
             }
         }
-        $allLocationIds = array_values(array_unique(array_filter($allLocationIds)));
+        $allLocationIds = array_values(array_unique($allLocationIds));
+        $allLocationIds = array_values(array_filter($allLocationIds, fn($v) => $v !== null && $v !== ''));
 
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
 
@@ -1345,15 +1368,21 @@ class TemplateController extends Controller
             $dataQuery->whereIn('location_id', $allLocationIds);
         }
 
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id']);
+        // Urutkan berdasarkan tanggal input paling baru agar sumber merefleksikan data terbaru
+        $dataQuery->orderByDesc('date_inputed');
+
+        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
 
         $dataIndex    = [];
         $rujukanIndex = [];
 
         foreach ($allData as $d) {
-            $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
+            if (!isset($dataIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
+            }
+
             $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
-            if ($namaProdusen) {
+            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
                 $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
         }
@@ -1390,6 +1419,11 @@ class TemplateController extends Controller
                 $rujukan = '-';
                 if ($locId && isset($rujukanIndex[$mId][$locId])) {
                     $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($rujukanIndex[$mId])) {
+                    $rujukan = collect($rujukanIndex[$mId])
+                        ->map(fn($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
                 }
 
                 $rows[] = [
@@ -1901,7 +1935,8 @@ class TemplateController extends Controller
     {
         $request->validate([
             'metadata_id'  => 'required|integer|exists:metadata,metadata_id',
-            'location_id'  => 'required|integer|exists:location,location_id',
+            // allow integer including 0 as sentinel for Indonesia
+            'location_id'  => 'required|integer',
             'frekuensi'    => 'required|string',
             'year_from'    => 'nullable|integer',
             'year_to'      => 'nullable|integer',
@@ -1911,21 +1946,54 @@ class TemplateController extends Controller
 
         $query = Data::with(['time', 'location'])
             ->where('metadata_id', $request->metadata_id)
-            ->where('location_id', $request->location_id)
             ->where('status', Data::STATUS_AVAILABLE);
+
+        // Jika location_id diberikan dan bukan 0 (sentinel untuk Semua Wilayah/Indonesia),
+        // batasi query berdasarkan location_id. Jika location_id == 0 atau kosong,
+        // artinya ambil dari semua lokasi (Semua Wilayah).
+        $locId = $request->input('location_id');
+        if ($locId !== null && (string) $locId !== '' && (int) $locId !== 0) {
+            $query->where('location_id', (int) $locId);
+        }
 
         $query = $this->applyTimeFilter($query, $request);
 
-        $data = $query->with('time')
+        // Honoring per_page param (client may request large page to fetch all)
+        $perPage = max(1, (int) ($request->input('per_page', 10)));
+        $page    = max(1, (int) ($request->input('page', 1)));
+
+        // Ambil semua baris yang cocok, urutkan berdasarkan tanggal input terbaru
+        // sehingga ketika kita melakukan unique('time_id') kita mendapatkan baris
+        // terbaru untuk setiap time_id.
+        $all = $query->with('time')
             ->orderByDesc('date_inputed')
-            ->paginate(10);
+            ->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'date_inputed']);
+
+        // Unique by time_id — first-wins (karena sudah ordered desc)
+        $uniqueByTime = $all->unique('time_id')->values();
+
+        // Sort ascending by time so chart shows timeline left→right chronologically.
+        $sorted = $uniqueByTime->sortBy(function ($d) {
+            $t = $d->time;
+            if (!$t) return 0;
+            if (!empty($t->decade)) return (int) $t->decade;
+            // use composite keys for semester/quarter/month
+            if (!empty($t->year) && !empty($t->semester)) return $t->year * 100 + $t->semester;
+            if (!empty($t->year) && !empty($t->quarter))  return $t->year * 100 + $t->quarter;
+            if (!empty($t->year) && !empty($t->month))    return $t->year * 100 + $t->month;
+            return (int) ($t->year ?? 0);
+        })->values();
+
+        $total = $sorted->count();
+
+        $paged = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
 
         return response()->json([
             'success' => true,
-            'data'    => $data->items(),
-            'total'   => $data->total(),
-            'pages'   => $data->lastPage(),
-            'current' => $data->currentPage(),
+            'data'    => $paged->all(),
+            'total'   => $total,
+            'pages'   => (int) ceil($total / $perPage),
+            'current' => $page,
         ]);
     }
 

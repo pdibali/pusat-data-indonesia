@@ -53,7 +53,7 @@ class MetadataController extends Controller
         if ($request->filled('filter_tipe_data'))   { $query->where('tipe_data', $request->filter_tipe_data); }
         if ($request->filled('filter_satuan'))      { $query->where('satuan_data', 'like', '%'.$request->filter_satuan.'%'); }
         if ($request->filled('filter_frekuensi'))   { $query->where('frekuensi_penerbitan', $request->filter_frekuensi); }
-        if ($request->filled('filter_produsen_id')) { $query->where('produsen_id', $request->filter_produsen_id); }
+        if ($request->filled('filter_produsen_id')) { $query->where('sumber_metadata_pertama', $request->filter_produsen_id); }
 
         // ── Filter Akses (is_free) ──────────────────────────────────────
         if ($request->filled('filter_akses')) {
@@ -77,7 +77,7 @@ class MetadataController extends Controller
 
         $produsenList = ProdusenData::whereIn(
                 'produsen_id',
-                Metadata::where('status', self::STATUS_ACTIVE)->distinct()->pluck('produsen_id')
+                Metadata::where('status', self::STATUS_ACTIVE)->distinct()->pluck('sumber_metadata_pertama')
             )->orderBy('nama_produsen')->get(['produsen_id', 'nama_produsen']);
 
         $produsenAll = ProdusenData::orderBy('nama_produsen')->get(['produsen_id', 'nama_produsen']);
@@ -125,7 +125,7 @@ class MetadataController extends Controller
     public function exportCount(Request $request)
     {
         $query = Metadata::where('status', self::STATUS_ACTIVE);
-        if ($request->filled('produsen_id')) { $query->where('produsen_id', $request->produsen_id); }
+        if ($request->filled('produsen_id')) { $query->where('sumber_metadata_pertama', $request->produsen_id); }
         if ($request->filled('frekuensi'))   { $query->where('frekuensi_penerbitan', $request->frekuensi); }
         return response()->json(['count' => $query->count()]);
     }
@@ -141,7 +141,7 @@ class MetadataController extends Controller
             ->orderBy('metadata_id');
 
         if ($request->filled('produsen_id')) {
-            $query->where('produsen_id', $request->produsen_id);
+            $query->where('sumber_metadata_pertama', $request->produsen_id);
         }
 
         if ($request->filled('frekuensi')) {
@@ -172,8 +172,8 @@ class MetadataController extends Controller
         $headers = [
             'ID', 'Nama', 'Alias', 'Konsep', 'Definisi', 'Klasifikasi', 'Asumsi',
             'Metodologi', 'Penjelasan Metodologi', 'Tipe Data', 'Satuan Data',
-            'Tahun Mulai Data', 'Frekuensi Penerbitan', 'Tahun Data Tersedia',
-            'Bulan Pertama Rilis', 'Tanggal Rilis', 'Produsen Id', 'Tag',
+            'Tahun Mulai Data', 'Tahun Metadata', 'Frekuensi Penerbitan', 'Tahun Data Tersedia',
+            'Bulan Pertama Rilis', 'Tanggal Rilis', 'Sumber Metadata Pertama', 'Tag',
             'Flag Desimal', 'Tipe Group', 'Group By', 'Status',
         ];
 
@@ -185,7 +185,7 @@ class MetadataController extends Controller
             $col++;
         }
 
-        $sheet->getStyle('A1:V1')->applyFromArray([
+        $sheet->getStyle('A1:W1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 10],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -210,29 +210,30 @@ class MetadataController extends Controller
             $sheet->setCellValue("J{$row}", $m->tipe_data);
             $sheet->setCellValue("K{$row}", $m->satuan_data);
             $sheet->setCellValue("L{$row}", $m->tahun_mulai);
-            $sheet->setCellValue("M{$row}", $m->frekuensi_penerbitan);
-            $sheet->setCellValue("N{$row}", $m->tahun_data_tersedia);
-            $sheet->setCellValue("O{$row}", $m->bulan_pertama_rilis);
-            $sheet->setCellValue("P{$row}", $m->tanggal_rilis);
-            $sheet->setCellValue("Q{$row}", $m->produsen_id);
+            $sheet->setCellValue("M{$row}", $m->tahun_metadata ?? 2026);
+            $sheet->setCellValue("N{$row}", $m->frekuensi_penerbitan);
+            $sheet->setCellValue("O{$row}", $m->tahun_data_tersedia);
+            $sheet->setCellValue("P{$row}", $m->bulan_pertama_rilis);
+            $sheet->setCellValue("Q{$row}", $m->tanggal_rilis);
+            $sheet->setCellValue("R{$row}", $m->sumber_metadata_pertama);
 
             $sheet->setCellValue(
-                "R{$row}",
+                "S{$row}",
                 is_array($m->tag)
                     ? json_encode($m->tag, JSON_UNESCAPED_UNICODE)
                     : ($m->tag ?? '[]')
             );
 
-            $sheet->setCellValue("S{$row}", $m->flag_decimal ?? 0);
-            $sheet->setCellValue("T{$row}", $m->tipe_group ?? 0);
-            $sheet->setCellValue("U{$row}", $m->group_by);
-            $sheet->setCellValue("V{$row}", $m->status ?? 1);
+            $sheet->setCellValue("T{$row}", $m->flag_decimal ?? 0);
+            $sheet->setCellValue("U{$row}", $m->tipe_group ?? 0);
+            $sheet->setCellValue("V{$row}", $m->group_by);
+            $sheet->setCellValue("W{$row}", $m->status ?? 1);
         }
 
         // ── Border SEKALI untuk seluruh block data, bukan per baris ──────────
         $lastRow = $rows->count() + 1;
         if ($lastRow >= 2) {
-            $sheet->getStyle("A2:V{$lastRow}")
+            $sheet->getStyle("A2:W{$lastRow}")
                 ->getBorders()
                 ->getAllBorders()
                 ->setBorderStyle(Border::BORDER_HAIR);
@@ -268,7 +269,7 @@ class MetadataController extends Controller
 
         // ── Metadata aktif milik produsen ─────────────────────────────────────
         $metadataList = Metadata::where('status', self::STATUS_ACTIVE)
-            ->where('produsen_id', $request->produsen_id)
+            ->where('sumber_metadata_pertama', $request->produsen_id)
             ->orderBy('metadata_id')
             ->get(['metadata_id', 'nama', 'satuan_data', 'flag_desimal']);
 
@@ -356,7 +357,8 @@ class MetadataController extends Controller
                     $row = [
                         'metadata_id'  => $metaId,
                         'nama_metadata'=> $meta->nama,
-                        'satuan'       => $meta->satuan_data,
+                        'satuan_metadata'       => $meta->satuan_data,
+                        'satuan_rujukan' => null,
                         'location_id' => $this->buildKodeWilayah($loc),
                         'nama_wilayah'  => $namaLokasi,
                         'rujukan_id'    => null,
@@ -374,7 +376,8 @@ class MetadataController extends Controller
                 $row = [
                     'metadata_id'  => $metaId,
                     'nama_metadata'=> $meta->nama,
-                    'satuan'       => $meta->satuan_data,
+                    'satuan_metadata'       => $meta->satuan_data,
+                    'satuan_rujukan' => null,
                     'location_id' => '',
                     'nama_wilayah'  => null,
                     'rujukan_id'    => null,
@@ -387,8 +390,8 @@ class MetadataController extends Controller
             $endIdx = count($excelRows) - 1;
             if ($endIdx >= $startIdx) {
                 $metaRowRanges[] = [
-                    'start'        => $startIdx + 4, // +4 karena data mulai di baris ke-4 sheet
-                    'end'          => $endIdx + 4,
+                    'start'        => $startIdx + 5, // +5 karena data mulai di baris ke-5 sheet
+                    'end'          => $endIdx + 5,
                     'flag_desimal' => (int) ($meta->flag_desimal ?? 0),
                 ];
             }
@@ -445,7 +448,8 @@ class MetadataController extends Controller
         $fixedHeaders = [
             ['label' => 'metadata_id',   'width' => 13, 'note' => 'ID metadata (otomatis, jangan diubah)'],
             ['label' => 'nama_metadata', 'width' => 40, 'note' => 'Nama metadata (otomatis, jangan diubah)'],
-            ['label' => 'satuan',        'width' => 20, 'note' => 'Satuan metadata'],
+            ['label' => 'satuan_metadata',        'width' => 20, 'note' => 'Satuan metadata'],
+            ['label' => 'satuan_rujukan',        'width' => 20, 'note' => 'Satuan rujukan'],
             ['label' => 'location_id',   'width' => 13, 'note' => 'ID lokasi dari tabel dimensi lokasi'],
             ['label' => 'nama_wilayah',   'width' => 40, 'note' => 'Nama lokasi (referensi, boleh dikosongkan)'],
             ['label' => 'rujukan_id',    'width' => 15, 'note' => 'ID rujukan dari tabel rujukan'],
@@ -503,7 +507,8 @@ class MetadataController extends Controller
 
                 $ws->setCellValue('A' . $rowNum, $row['metadata_id']);
                 $ws->setCellValue('B' . $rowNum, $row['nama_metadata']);
-                $ws->setCellValue('C' . $rowNum, $row['satuan']);
+                $ws->setCellValue('C' . $rowNum, $row['satuan_metadata']);
+                $ws->setCellValue('D' . $rowNum, $row['satuan_rujukan']);
                 $ws->setCellValue('D' . $rowNum, $row['location_id']);
                 $ws->setCellValue('E' . $rowNum, $row['nama_wilayah']);
                 $ws->setCellValue('F' . $rowNum, $row['rujukan_id']);
@@ -760,7 +765,9 @@ class MetadataController extends Controller
             'tanggal_rilis'         => 'nullable|integer|between:1,31',
             'flag_desimal'          => 'required|integer',
             'tag'                   => 'required|max:255',
-            'produsen_id'           => 'required|exists:produsen_data,produsen_id',
+            'produsen_id'           => 'required',
+            'tahun_metadata'        => 'nullable|integer|min:1900|max:2100',
+            'tahun_metadata'        => 'nullable|integer|min:1900|max:2100',
             'tipe_group'            => 'required|integer',
             'group_by'              => [
                 'nullable',
@@ -768,6 +775,20 @@ class MetadataController extends Controller
                 Rule::exists('metadata','metadata_id')->where('status', self::STATUS_ACTIVE),
             ],
         ]);
+
+        // Resolve produsen input (accept numeric ID or produsen name)
+        $produsenInput = $request->produsen_id;
+        $produsenId = null;
+        if (is_numeric($produsenInput)) {
+            $produsenId = (int) $produsenInput;
+        } elseif (is_string($produsenInput) && trim($produsenInput) !== '') {
+            $found = ProdusenData::whereRaw('LOWER(nama_produsen) = ?', [strtolower(trim($produsenInput))])->first();
+            if ($found) $produsenId = $found->produsen_id;
+        }
+
+        if (! $produsenId) {
+            return back()->withErrors(['produsen_id' => 'Produsen tidak ditemukan. Gunakan ID atau nama produsen yang valid.'])->withInput();
+        }
 
         Metadata::create([
             'nama'                   => $request->nama,
@@ -787,7 +808,8 @@ class MetadataController extends Controller
             'tanggal_rilis'          => $request->tanggal_rilis,
             'flag_desimal'           => $request->flag_desimal,
             'tag'                    => $request->tag,
-            'produsen_id'            => $request->produsen_id,
+            'sumber_metadata_pertama'            => $produsenId,
+            'tahun_metadata'                     => $request->tahun_metadata ?? 2026,
             'tipe_group'             => $request->tipe_group ?? 0,
             'group_by'               => $request->tipe_group == 1 ? $request->group_by : null,
             'status'                 => self::STATUS_PENDING,
@@ -830,7 +852,7 @@ class MetadataController extends Controller
             'tanggal_rilis'         => 'nullable|integer|between:1,31',
             'flag_desimal'          => 'required|integer',
             'tag'                   => 'required|max:255',
-            'produsen_id'           => 'required|exists:produsen_data,produsen_id',
+            'produsen_id'           => 'required',
             'tipe_group'            => 'required|integer',
             'group_by'              => [
                 'nullable',
@@ -844,6 +866,20 @@ class MetadataController extends Controller
                 },
             ],
         ]);
+
+        // Resolve produsen input (accept numeric ID or produsen name)
+        $produsenInput = $request->produsen_id;
+        $produsenId = null;
+        if (is_numeric($produsenInput)) {
+            $produsenId = (int) $produsenInput;
+        } elseif (is_string($produsenInput) && trim($produsenInput) !== '') {
+            $found = ProdusenData::whereRaw('LOWER(nama_produsen) = ?', [strtolower(trim($produsenInput))])->first();
+            if ($found) $produsenId = $found->produsen_id;
+        }
+
+        if (! $produsenId) {
+            return back()->withErrors(['produsen_id' => 'Produsen tidak ditemukan. Gunakan ID atau nama produsen yang valid.'])->withInput();
+        }
 
         $metadata->update([
             'nama'                   => $request->nama,
@@ -863,7 +899,8 @@ class MetadataController extends Controller
             'tanggal_rilis'          => $request->tanggal_rilis,
             'flag_desimal'           => $request->flag_desimal,
             'tag'                    => $request->tag,
-            'produsen_id'            => $request->produsen_id,
+            'sumber_metadata_pertama'            => $produsenId,
+            'tahun_metadata'                     => $request->tahun_metadata ?? 2026,
             'tipe_group'             => $request->tipe_group ?? 0,
             'group_by'               => $request->tipe_group == 1 ? $request->group_by : null,
         ]);
@@ -887,7 +924,7 @@ class MetadataController extends Controller
         if ($request->filled('filter_klasifikasi')) {
             $query->where('klasifikasi_id', $request->filter_klasifikasi);
         }
-        if ($request->filled('filter_produsen_id')) { $query->where('produsen_id',$request->filter_produsen_id); }
+        if ($request->filled('filter_produsen_id')) { $query->where('sumber_metadata_pertama',$request->filter_produsen_id); }
         if ($request->filled('filter_tipe_data'))   { $query->where('tipe_data',$request->filter_tipe_data); }
         if ($request->filled('filter_user'))        { $query->whereHas('user',fn($q)=>$q->where('name','like','%'.$request->filter_user.'%')); }
         if ($request->filled('filter_date_from'))   { $query->whereDate('date_inputed','>=',$request->filter_date_from); }
@@ -902,7 +939,7 @@ class MetadataController extends Controller
         $klasifikasiList = Klasifikasi::orderBy('nama_klasifikasi')
             ->get(['klasifikasi_id', 'nama_klasifikasi']);
         $tipeDataList    = Metadata::select('tipe_data')->distinct()->orderBy('tipe_data')->pluck('tipe_data')->filter()->values();
-        $produsenList    = ProdusenData::whereIn('produsen_id', Metadata::distinct()->pluck('produsen_id'))->orderBy('nama_produsen')->get(['produsen_id','nama_produsen']);
+        $produsenList    = ProdusenData::whereIn('produsen_id', Metadata::distinct()->pluck('sumber_metadata_pertama'))->orderBy('nama_produsen')->get(['produsen_id','nama_produsen']);
 
         return view('pages.metadata.approval', compact('data','countPending','countActive','countInactive','statusFilter','klasifikasiList','tipeDataList','produsenList'));
     }

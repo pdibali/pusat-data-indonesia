@@ -8,6 +8,7 @@ use App\Models\Transaksi;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Services\SessionLimitService;
+use Database\Seeders\GroupSeeder;
 use App\Services\SubscriptionLimitsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -16,6 +17,12 @@ use Tests\TestCase;
 class SubscriptionLimitsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(GroupSeeder::class);
+    }
 
     public function test_it_enforces_concurrent_session_limit_for_personal_packages(): void
     {
@@ -133,7 +140,9 @@ class SubscriptionLimitsTest extends TestCase
 
     public function test_it_blocks_template_creation_when_limit_reached(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'group_id' => 3,
+        ]);
 
         $package = Layanan::create([
             'nama_layanan' => 'Paket Personal Template',

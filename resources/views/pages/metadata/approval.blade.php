@@ -160,7 +160,7 @@
                     @endif
                     <th class="px-4 py-3 font-semibold min-w-52">Nama</th>
                     <th class="px-4 py-3 font-semibold min-w-32">Klasifikasi</th>
-                    <th class="px-4 py-3 font-semibold min-w-36">Produsen</th>
+                    <th class="px-4 py-3 font-semibold min-w-36">Sumber Metadata Pertama</th>
                     <th class="px-4 py-3 font-semibold min-w-24">Tipe Data</th>
                     <th class="px-4 py-3 font-semibold min-w-28">Diinput Oleh</th>
                     <th class="px-4 py-3 font-semibold text-center min-w-24">Status</th>

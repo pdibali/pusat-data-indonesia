@@ -141,7 +141,6 @@ class TemplateExportController extends Controller
             'period_to'   => 'nullable|integer',
         ]);
 
-        // ── 1. Load template ───────────────────────────────────
         $tampilanQuery = Tampilan::where('tampilan_id', $request->tampilan_id);
         if (Auth::check()) {
             $tampilanQuery->where('user_id', Auth::id());
@@ -153,7 +152,6 @@ class TemplateExportController extends Controller
             return ['success' => false, 'message' => 'Template ini terkunci karena melebihi kuota paket Anda. Silakan berlangganan untuk membuka kembali.'];
         }
 
-        // ── 2. Isi tampilan (metadata + location_ids) ──────────
         $isiList = IsiTampilan::where('tampilan_id', $tampilan->tampilan_id)->get();
         if ($isiList->isEmpty()) {
             return ['success' => false, 'message' => 'Tidak ada metadata dalam template ini.'];
@@ -167,18 +165,16 @@ class TemplateExportController extends Controller
         }
         $metadataIds = array_keys($metaLocationMap);
 
-        // ── 3. Metadata aktif ──────────────────────────────────
         $metadataList = Metadata::whereIn('metadata_id', $metadataIds)
             ->where('status', 2)
             ->orderBy('nama')
-            ->with(['klasifikasi', 'produsen'])   // ← load relasi penuh, bukan select kolom terbatas lagi
+            ->with(['klasifikasi', 'produsen'])
             ->get();
 
         if ($metadataList->isEmpty()) {
             return ['success' => false, 'message' => 'Tidak ada metadata aktif.'];
         }
 
-        // ── 4. Kolom waktu ─────────────────────────────────────
         $columns    = $this->buildColumns($request->frekuensi, $request);
         $timeIdMap  = $this->resolveTimeIds($columns, $request->frekuensi);
         $allTimeIds = array_values(array_filter(array_column($timeIdMap, 'time_id')));
@@ -187,13 +183,12 @@ class TemplateExportController extends Controller
             return ['success' => false, 'message' => 'Tidak ada kolom periode pada rentang yang dipilih.'];
         }
 
-        // ── 5. Ambil semua data sekaligus ──────────────────────
         $allLocationIds = array_unique(array_merge(...array_values($metaLocationMap)));
         $allLocationIds = array_values(array_filter($allLocationIds));
 
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
 
-        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan'])
+        $dataQuery = Data::with(['rujukan:rujukan_id,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
 
@@ -204,19 +199,24 @@ class TemplateExportController extends Controller
             $dataQuery->whereIn('location_id', $allLocationIds);
         }
 
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id']);
+        $dataQuery->orderByDesc('date_inputed');
+
+        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
 
         $dataIndex    = [];
         $rujukanIndex = [];
         foreach ($allData as $d) {
-            $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
-            if ($d->rujukan) {
-                $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->rujukan->nama_rujukan;
+            if (!isset($dataIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
+            }
+
+            $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
+            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
         }
 
-        // ── 6. Bangun baris grouped (per metadata → [lokasi, ...]) ──
-        $grouped = []; // [ metadata_id => ['nama'=>, 'satuan'=>, 'sumber'=>, 'rows'=>[ ['lokasi'=>, 'values'=>] ]] ]
+        $grouped = [];
 
         foreach ($metadataList as $m) {
             $mId    = $m->metadata_id;
@@ -249,8 +249,11 @@ class TemplateExportController extends Controller
                 $rujukan = '-';
                 if ($locId && isset($rujukanIndex[$mId][$locId])) {
                     $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
-                } elseif ($m->rujukan) {
-                    $rujukan = $m->rujukan->nama_rujukan ?? '-';
+                } elseif (isset($rujukanIndex[$mId])) {
+                    $rujukan = collect($rujukanIndex[$mId])
+                        ->map(fn ($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
                 }
 
                 $metaRows[] = [
@@ -505,7 +508,7 @@ class TemplateExportController extends Controller
                 'Definisi'               => [$m?->definisi, 55],
                 'Metodologi'             => [$m?->metodologi, 18],
                 'Penjelasan Metodologi'  => [$m?->penjelasan_metodologi, 55],
-                'Produsen Data'          => [$m?->produsen?->nama_produsen, 18],
+                'Sumber Produsen Pertama'          => [$m?->produsen?->nama_produsen, 18],
             ];
 
             foreach ($fields as $label => [$value, $height]) {

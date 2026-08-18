@@ -107,7 +107,7 @@
                                 Status: <strong>{{ session('duplicate_warning.existing_status') }}</strong>
                             </p>
                             <div class="flex gap-2 mt-3">
-                                <a href="{{ route('data.show', session('duplicate_warning.existing_id')) }}"
+                                <a href="{{ route('data.show', ['datum' => session('duplicate_warning.existing_id'), 'from' => 'create']) }}"
                                 class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5
                                         rounded-md font-medium transition-colors">
                                     <i class="fas fa-eye mr-1"></i> Lihat Data Existing
@@ -333,6 +333,7 @@
                             Rujukan
                             <span id="satuanLabel" class="text-gray-400 font-normal text-xs ml-1"></span>
                         </label>
+                        <p class="mt-1 text-xs text-gray-400">Produsen akan terisi otomatis berdasarkan pilihan Rujukan jika tidak diisi manual.</p>
                         <select name="rujukan_id"  placeholder="Pilih rujukan..." autocomplete="off"
                                 class="tom-select w-full focus:outline-none focus:ring-2
                                     focus:ring-sky-400 text-xs">
@@ -377,10 +378,10 @@
                     </p>
                     <p class="text-xs text-gray-600 mb-3">
                         Gunakan file template yang di-generate dari halaman
-                        <strong> Metadata → Export Template</strong>
-                        dengan struktur kolom:
+                        <strong>Metadata</strong>, dengan klik <strong>Export Template</strong>
+                        untuk menggunakan template input data.
                     </p>
-                    <div class="flex flex-wrap gap-1.5 mb-3">
+                    {{-- <div class="flex flex-wrap gap-1.5 mb-3">
                         @foreach(['metadata_id','nama_metadata','location_id','nama_wilayah', 'rujukan_id'] as $col)
                             <code class="px-2 py-0.5 rounded text-xs font-mono font-bold"
                                 style="background:#e0f2fe; color:#0369a1;">{{ $col }}</code>
@@ -398,7 +399,7 @@
                         <code class="bg-gray-100 px-1 rounded">{{ date('Y') }}_Q1</code> (Quarter) ·
                         <code class="bg-gray-100 px-1 rounded">{{ date('Y') }}_S1</code> (Semester) ·
                         <code class="bg-gray-100 px-1 rounded">Jan_{{ date('Y') }}</code> (Bulanan)
-                    </p>
+                    </p> --}}
                 </div>
 
                 {{-- Drop Zone --}}
@@ -2490,7 +2491,30 @@
                 );
                 resetUpload();
             } else {
-                showImportAlert('error', json.message || 'Import gagal.');
+                // Build extra details (row-level errors) if provided by server
+                let extraHtml = '';
+                if (json.db_error) {
+                    extraHtml += `<div class="mt-2 text-xs text-gray-700">DB: ${esc(json.db_error)}</div>`;
+                }
+                if (json.error_rows && Array.isArray(json.error_rows) && json.error_rows.length > 0) {
+                    extraHtml += '<div class="mt-2 text-xs text-gray-700 font-semibold">Detail Baris Error:</div>';
+                    extraHtml += '<ul class="mt-1 text-xs list-disc pl-5 text-gray-700">';
+                    json.error_rows.forEach(e => {
+                        const rowText = e.row ? `Baris ${esc(e.row)}:` : '';
+                        extraHtml += `<li>${rowText} ${esc(e.message)}</li>`;
+                    });
+                    extraHtml += '</ul>';
+                }
+                if (json.invalid_metadata_rows && Array.isArray(json.invalid_metadata_rows) && json.invalid_metadata_rows.length > 0) {
+                    extraHtml += '<div class="mt-2 text-xs text-gray-700 font-semibold">Metadata Bermasalah:</div>';
+                    extraHtml += '<ul class="mt-1 text-xs list-disc pl-5 text-gray-700">';
+                    json.invalid_metadata_rows.forEach(m => {
+                        extraHtml += `<li>Metadata ID ${esc(m.metadata_id)}: ${esc(m.nama_metadata ?? '-')}</li>`;
+                    });
+                    extraHtml += '</ul>';
+                }
+
+                showImportAlert('error', json.message || 'Import gagal.', extraHtml);
                 if (previewData) renderPreview(previewData);
                 btn.disabled = false;
             }

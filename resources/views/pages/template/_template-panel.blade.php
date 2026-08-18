@@ -1714,14 +1714,16 @@ function _renderTable(d) {
             }
 
             // ── Sumber: PER BARIS, karena tiap lokasi bisa punya rujukan/produsen beda ──
+            const sumberCombined = (row.sumber ?? '') + (row.produsen ? ((row.sumber ? ' · ' : '') + row.produsen) : '');
             html += `
                 <td class="px-3 py-2.5 text-xs text-gray-400 align-top border-l border-gray-200"
-                    style="max-width:180px" title="${_esc(row.sumber ?? '')}">
-                    <span class="line-clamp-3">${_esc(row.sumber ?? '-')}</span>
+                    style="max-width:180px" title="${_esc(sumberCombined)}">
+                    <span class="line-clamp-3">${_esc(sumberCombined || '-')}</span>
                 </td>`;
 
             // ── Aksi/Grafik: muncul di SETIAP baris (per lokasi) ──
-            const grafikUrl = `${TMPL_URLS.grafik}?metadata_id=${row.metadata_id}&location_id=${row.location_id ?? ''}`;
+            // Jika location_id kosong/null (Semua Wilayah), kirimkan 0 sebagai sentinel
+            const grafikUrl = `${TMPL_URLS.grafik}?metadata_id=${row.metadata_id}&location_id=${(row.location_id ?? 0)}`;
             const locLabel  = row.lokasi ? _esc(row.lokasi) : 'Semua Wilayah';
             html += `
                 <td class="px-3 py-2.5 text-center align-middle border-l border-gray-200 whitespace-nowrap">

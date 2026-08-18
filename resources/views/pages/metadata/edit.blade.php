@@ -160,13 +160,13 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Produsen Data *</label>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Sumber Metadata Pertama</label>
                     <select name="produsen_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required>
                         <option value="">— Pilih Produsen —</option>
                         @foreach($produsen as $p)
                             <option value="{{ $p->produsen_id }}"
-                                @selected(old('produsen_id', $metadata->produsen_id) == $p->produsen_id)>
+                                @selected(old('produsen_id', $metadata->sumber_metadata_pertama) == $p->produsen_id)>
                                 {{ $p->nama_produsen }}
                             </option>
                         @endforeach
@@ -215,6 +215,13 @@
                            value="{{ old('tahun_mulai_data', $metadata->tahun_mulai_data) }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required>
                     <p class="text-xs text-gray-400 mt-1">Tahun mulai data aktual dihitung otomatis dari data yang sudah masuk.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tahun Metadata</label>
+                    <input type="number" name="tahun_metadata" min="1900" max="2100"
+                           value="{{ old('tahun_metadata', $metadata->tahun_metadata ?? 2026) }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
                 </div>
 
                 <div>

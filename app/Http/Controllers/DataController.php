@@ -322,13 +322,17 @@ class DataController extends Controller
         }
 
         // ── Simpan data ───────────────────────────────────────
+        // Resolve produsen_id from rujukan if not provided explicitly
+        $rujukan = Rujukan::where('rujukan_id', $request->rujukan_id)->first();
+        $produsenFromRujukan = $rujukan?->produsen_id ?? null;
+
         $data = Data::create([
             'user_id'         => Auth::user()->user_id,
             'metadata_id'     => $request->metadata_id,
             'location_id'     => $request->location_id,
             'time_id'         => $request->time_id,
             'rujukan_id'      => $request->rujukan_id,
-            'produsen_id'     => $request->produsen_id ? : null,
+            'produsen_id'     => $request->filled('produsen_id') ? $request->produsen_id : $produsenFromRujukan,
             'number_value'    => $request->number_value,
             'status'          => Data::STATUS_PENDING,
             'workflow_status' => Data::WORKFLOW_DRAFT,
@@ -442,7 +446,22 @@ class DataController extends Controller
             );
  
             $result = $import->import($path, $excludedKeys, $anomalyKeys, $unitConflictKeys);
- 
+
+            if (isset($result['success']) && $result['success'] === false) {
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Gagal mengimpor data.',
+                        'db_error' => $result['db_error'] ?? null,
+                        'error_rows' => $result['error_rows'] ?? [],
+                        'invalid_metadata_rows' => $result['invalid_metadata_rows'] ?? [],
+                        'invalid_satuan_rows' => $result['invalid_satuan_rows'] ?? [],
+                    ], 422);
+                }
+
+                return redirect()->back()->withErrors(['file_excel' => $result['message'] ?? 'Gagal mengimpor data.']);
+            }
+
             // Screening anomali untuk data yang baru diimport
             $anomalyStats = ['scanned' => 0, 'anomaliesFound' => 0];
             if ($result['imported'] > 0) {
@@ -702,13 +721,16 @@ class DataController extends Controller
         $oldValues = $datum->only([
             'metadata_id', 'location_id', 'time_id', 'rujukan_id', 'produsen_id', 'number_value',
         ]);
+        // Resolve produsen_id from rujukan if not provided explicitly
+        $rujukan = Rujukan::where('rujukan_id', $request->rujukan_id)->first();
+        $produsenFromRujukan = $rujukan?->produsen_id ?? null;
 
         $datum->fill([
             'metadata_id' => $request->metadata_id,
             'location_id' => $request->location_id,
             'time_id' => $request->time_id,
             'rujukan_id' => $request->rujukan_id,
-            'produsen_id' => $request->produsen_id ?: null,
+            'produsen_id' => $request->filled('produsen_id') ? $request->produsen_id : $produsenFromRujukan,
             'number_value' => $request->number_value,
             'status' => Data::STATUS_PENDING,
             'workflow_status' => Data::WORKFLOW_DRAFT,

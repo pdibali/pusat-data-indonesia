@@ -2,7 +2,7 @@
 
 @section('content')
 
-    <a href="{{ url()->previous() }}"
+    <a href="{{ route('data.index') }}"
         class="flex items-center gap-1 font-semibold text-sky-600 pt-6 ps-4 mb-4 hover:text-sky-900 text-sm transition-colors">
             <i class="fas fa-angle-left"></i> Kembali
     </a>
@@ -92,6 +92,7 @@
                     <th class="px-4 py-3 font-semibold min-w-28">Waktu</th>
                     <th class="px-4 py-3 font-semibold min-w-32">Nilai</th>
                     <th class="px-4 py-3 font-semibold min-w-28">Diinput Oleh</th>
+                    <th class="px-4 py-3 font-semibold min-w-36">Produsen</th>
                     <th class="px-4 py-3 font-semibold min-w-36">Tanggal Input</th>
                     <th class="px-4 py-3 font-semibold min-w-20">Status</th>
                     <th class="px-4 py-3 font-semibold text-center min-w-24">Aksi</th>
@@ -179,6 +180,14 @@
                     <td class="px-2 py-1.5">
                         <input type="text" id="filterUser" value="{{ request('filter_user') }}"
                                placeholder="Filter user..."
+                               class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300"
+                               onkeydown="if(event.key==='Enter') applyFilters()">
+                    </td>
+
+                    {{-- Produsen filter --}}
+                    <td class="px-2 py-1.5">
+                        <input type="text" id="filterProdusen" value="{{ request('filter_produsen') }}"
+                               placeholder="Filter produsen..."
                                class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300"
                                onkeydown="if(event.key==='Enter') applyFilters()">
                     </td>
@@ -302,6 +311,10 @@
                         <td class="px-4 py-3 text-xs text-gray-500">
                             <p>{{ $row->user->name ?? '-' }}</p>
                         </td>
+
+                        <td class="px-4 py-3 text-xs text-gray-500">
+                            {{ $row->produsen?->nama_produsen ?? '-' }}
+                        </td>
                         <td class="px-4 py-3 text-xs text-gray-500">
                             {{ \Carbon\Carbon::parse($row->date_inputed)->translatedFormat('d M Y') }}
                             <p class="text-gray-400">
@@ -325,7 +338,7 @@
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2 flex-wrap">
                                 {{-- Detail --}}
-                                <a href="{{ route('data.show', $row->id) }}"
+                                <a href="{{ route('data.show', ['datum' => $row->id, 'from' => 'approval']) }}"
                                    class="text-sky-500 hover:text-sky-700 text-xs font-medium transition-colors"
                                    title="Lihat Detail">
                                     <i class="fas fa-eye"></i>
@@ -383,7 +396,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-16 text-center">
+                        <td colspan="10" class="px-4 py-16 text-center">
                             <div class="flex flex-col items-center gap-3 text-gray-400">
                                 <i class="fas fa-clipboard-check text-4xl text-gray-300"></i>
                                 <p class="font-medium text-gray-500">
@@ -545,6 +558,7 @@
         setOrDelete('filter_nilai_min',      document.getElementById('filterNilaiMin')?.value);
         setOrDelete('filter_nilai_max',      document.getElementById('filterNilaiMax')?.value);
         setOrDelete('filter_user',           document.getElementById('filterUser')?.value);
+        setOrDelete('filter_produsen',       document.getElementById('filterProdusen')?.value);
         setOrDelete('filter_tanggal_dari',   document.getElementById('filterTanggalDari')?.value);
         setOrDelete('filter_tanggal_sampai', document.getElementById('filterTanggalSampai')?.value);
 
