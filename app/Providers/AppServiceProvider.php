@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Pagination\Paginator;
 use App\Services\StemmerService;
 use App\Models\Transaksi;
+use App\Models\DataRequest;
+use App\Models\DataReport;
 
 class AppServiceProvider extends ServiceProvider
 {

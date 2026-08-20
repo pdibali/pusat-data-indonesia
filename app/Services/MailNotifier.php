@@ -5,6 +5,10 @@ namespace App\Services;
 use App\Mail\VerifikasiEmail;
 use App\Mail\ResetPasswordMail;
 use App\Mail\AccountLocked;
+use App\Mail\NewDataReportSubmitted;
+use App\Mail\NewDataRequestSubmitted;
+use App\Models\DataReport;
+use App\Models\DataRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -26,6 +30,36 @@ use Throwable;
  */
 class MailNotifier
 {
+    public function kirimDataRequest(DataRequest $dataRequest, string $recipient): bool
+    {
+        if (config('mail.default') === 'gas') {
+            return $this->panggilGas('data_request_submitted', $recipient, [
+                'namaData' => $dataRequest->nama_data,
+                'deskripsi' => $dataRequest->deskripsi,
+                'instansi' => $dataRequest->instansi_perkiraan,
+                'reviewLink' => route('admin.data_requests.show', $dataRequest),
+            ]);
+        }
+
+        Mail::to($recipient)->queue(new NewDataRequestSubmitted($dataRequest));
+        return true;
+    }
+
+    public function kirimDataReport(DataReport $dataReport, string $recipient): bool
+    {
+        if (config('mail.default') === 'gas') {
+            return $this->panggilGas('data_report_submitted', $recipient, [
+                'namaData' => $dataReport->nama_data,
+                'produsenData' => $dataReport->produsen_data,
+                'deskripsiKesalahan' => $dataReport->deskripsi_kesalahan,
+                'reviewLink' => route('admin.data_reports.show', $dataReport),
+            ]);
+        }
+
+        Mail::to($recipient)->queue(new NewDataReportSubmitted($dataReport));
+        return true;
+    }
+
     /**
      * Kirim email verifikasi akun ke user baru.
      */
