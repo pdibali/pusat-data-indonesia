@@ -51,13 +51,6 @@
     <input type="hidden" name="location_id" :value="selectedLocationId">
 
     <div class="mb-3">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Negara</label>
-        <select disabled class="w-full p-2 rounded-md border-2 border-gray-300 bg-gray-100 text-gray-500 text-sm">
-            <option>Indonesia</option>
-        </select>
-    </div>
-
-    <div class="mb-3">
         <label class="block text-sm font-medium text-gray-700 mb-1">Provinsi <span class="text-red-500">*</span></label>
         <select x-model="provinsi" @change="onProvinsiChange()" required
                 class="w-full p-2 rounded-md border-2 border-gray-300 text-sm focus:border-sky-400 focus:ring-sky-400">

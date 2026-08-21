@@ -67,13 +67,13 @@
                 <input type="hidden" name="status" id="reviewStatus">
                 <textarea name="admin_notes" rows="3" maxlength="2000" placeholder="Catatan (opsional)"
                           class="w-full p-2 rounded-md border-2 border-gray-300 text-sm mb-3"></textarea>
-                <div class="flex gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button type="button" onclick="submitReview('diterima')"
-                            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2">
+                            class="px-4 py-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2">
                         <i class="fas fa-check"></i> Terima Laporan
                     </button>
                     <button type="button" onclick="submitReview('ditolak')"
-                            class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg flex items-center gap-2">
+                            class="px-4 py-3 sm:py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg flex items-center gap-2">
                         <i class="fas fa-times"></i> Tolak Laporan
                     </button>
                 </div>

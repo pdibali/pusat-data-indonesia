@@ -23,6 +23,7 @@
             "children"     => [],
             "onlyCustomer" => false,
             "onlyAdmin"    => false,
+            "badge"        => $isAdmin ? ($pendingDataRequestCount ?? 0) : 0,
         ],
         (object)[
             "title"        => "Laporkan Data",
@@ -32,6 +33,7 @@
             "children"     => [],
             "onlyCustomer" => false,
             "onlyAdmin"    => false,
+            "badge"        => $isAdmin ? ($pendingDataReportCount ?? 0) : 0,
         ],
         (object)[
             "title"        => "Riwayat Berlangganan",
@@ -159,16 +161,16 @@
        style="background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 100%);">
 
     {{-- ── Logo + Close button (mobile) ── --}}
-    <div class="px-4 py-2 flex items-center justify-center border-b border-white/10">
+    <div class="relative px-4 py-2 flex items-center justify-center border-b border-white/10">
         <div class="flex items-center gap-3">
             <img src="{{ asset('images/logo/PDIB-transparan-A.png') }}"
                 alt="Pusat Data Indonesia Bali"
                 class="h-10 w-auto object-contain">
         </div>
 
-        {{-- Close button — only visible on mobile --}}
+        {{-- Pinned ke pojok kanan, terlepas dari lebar logo --}}
         <button @click="sidebarOpen = false"
-                class="lg:hidden w-7 h-7 flex items-center justify-center rounded-md
+                class="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md
                     text-white/60 hover:text-white hover:bg-white/10 transition-colors">
             <i class="fas fa-times text-xs"></i>
         </button>

@@ -85,6 +85,16 @@ class AppServiceProvider extends ServiceProvider
                 'pendingVerifikasiCount',
                 Transaksi::where('status', 'menunggu_verifikasi')->count()
             );
+
+            $view->with(
+                'pendingDataRequestCount',
+                DataRequest::where('status', 'diajukan')->count()
+            );
+
+            $view->with(
+                'pendingDataReportCount',
+                DataReport::where('status', 'diajukan')->count()
+            );
         });
 
         // Hapus/comment composer khusus sidebar ini:
