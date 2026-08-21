@@ -6,6 +6,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IsLogin;
 use App\Http\Middleware\IsPengelola;
 use App\Http\Middleware\IsCustomer;
+use App\Http\Middleware\IsReviewer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'is.login'    => IsLogin::class,
             'is.customer' => IsCustomer::class,
             'is.pengelola' => IsPengelola::class,
+            'is.reviewer' => IsReviewer::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

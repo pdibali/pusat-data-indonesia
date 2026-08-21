@@ -26,6 +26,11 @@ use App\Http\Controllers\LandingController;
 use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\AdminTransaksiController;
 use App\Http\Controllers\AnomalyControlController;
+use App\Http\Controllers\AdminDataRequestController;
+use App\Http\Controllers\AdminDataReportController;
+use App\Http\Controllers\DataRequestController;
+use App\Http\Controllers\DataReportController;
+use App\Http\Controllers\WilayahLookupController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\SettingController;
 
@@ -168,7 +173,7 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
     Route::get('/session/pending-login/{id}/wait', [\App\Http\Controllers\SessionSecurityController::class, 'pendingLoginWait'])
         ->name('session.pending_login.wait');
 
-    Route::prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('is.reviewer')->group(function () {
         Route::resource('users',    UserController::class);
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::resource('groups',   GroupController::class);
@@ -205,6 +210,41 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
 
         Route::post('/settings/toggle-midtrans', [SettingController::class, 'toggleMidtrans'])
             ->name('settings.toggle_midtrans');
+
+        Route::prefix('data-requests')->name('data_requests.')->group(function () {
+        Route::get('/',      [AdminDataRequestController::class, 'index'])->name('index');
+        Route::get('/{dataRequest}', [AdminDataRequestController::class, 'show'])->name('show');
+        Route::post('/{dataRequest}/review', [AdminDataRequestController::class, 'review'])->name('review');
+        });
+
+        Route::prefix('data-reports')->name('data_reports.')->group(function () {
+            Route::get('/',      [AdminDataReportController::class, 'index'])->name('index');
+            Route::get('/{dataReport}', [AdminDataReportController::class, 'show'])->name('show');
+            Route::post('/{dataReport}/review', [AdminDataReportController::class, 'review'])->name('review');
+        });
+    });
+
+    Route::prefix('wilayah')->name('wilayah.')->group(function () {
+        Route::get('/provinsi',   [WilayahLookupController::class, 'provinsi'])->name('provinsi');
+        Route::get('/kabupaten',  [WilayahLookupController::class, 'kabupaten'])->name('kabupaten');
+        Route::get('/kecamatan',  [WilayahLookupController::class, 'kecamatan'])->name('kecamatan');
+        Route::get('/desa',       [WilayahLookupController::class, 'desa'])->name('desa');
+    });
+
+    // ── Usulan Data Baru ──────────────────────────────────────
+    Route::prefix('usulan-data')->name('data_requests.')->group(function () {
+        Route::get('/',        [DataRequestController::class, 'index'])->name('index'); // riwayat milik user
+        Route::get('/create',  [DataRequestController::class, 'create'])->name('create');
+        Route::post('/',       [DataRequestController::class, 'store'])->name('store');
+        Route::get('/{dataRequest}', [DataRequestController::class, 'show'])->name('show');
+    });
+
+    // ── Laporan Data Bermasalah ────────────────────────────────
+    Route::prefix('laporan-data')->name('data_reports.')->group(function () {
+        Route::get('/',        [DataReportController::class, 'index'])->name('index');
+        Route::get('/create',  [DataReportController::class, 'create'])->name('create');
+        Route::post('/',       [DataReportController::class, 'store'])->name('store');
+        Route::get('/{dataReport}', [DataReportController::class, 'show'])->name('show');
     });
 
     // TRANSAKSI — User (memerlukan login)

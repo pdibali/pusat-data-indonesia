@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Pagination\Paginator;
 use App\Services\StemmerService;
 use App\Models\Transaksi;
+use App\Models\DataRequest;
+use App\Models\DataReport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -82,6 +84,16 @@ class AppServiceProvider extends ServiceProvider
             $view->with(
                 'pendingVerifikasiCount',
                 Transaksi::where('status', 'menunggu_verifikasi')->count()
+            );
+
+            $view->with(
+                'pendingDataRequestCount',
+                DataRequest::where('status', 'diajukan')->count()
+            );
+
+            $view->with(
+                'pendingDataReportCount',
+                DataReport::where('status', 'diajukan')->count()
             );
         });
 

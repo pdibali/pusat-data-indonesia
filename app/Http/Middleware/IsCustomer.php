@@ -18,9 +18,10 @@ class IsCustomer
         'data.*',
         'transaksi.*',
         'organizations.*',
-        // Session-related endpoints (pending login / verification) must be reachable
-        // by customers' active sessions so they can approve/reject login attempts.
         'session.*',
+        'data_requests.*',
+        'data_reports.*',
+        'wilayah.*',
     ];
 
     public function handle(Request $request, Closure $next): Response

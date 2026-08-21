@@ -129,8 +129,8 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
 
                 try {
-                    \Illuminate\Support\Facades\Mail::to($user->email)
-                        ->send(new \App\Mail\AccountLocked($user, $token));
+                    app(\App\Services\MailNotifier::class)
+                        ->kirimAccountLocked($user, $token);
                 } catch (\Throwable $e) {
                     // swallow mail errors
                 }
