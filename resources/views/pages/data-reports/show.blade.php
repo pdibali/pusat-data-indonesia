@@ -40,6 +40,10 @@
             <p class="text-xs text-gray-400 mb-1">Produsen Data</p>
             <p class="text-sm font-medium text-gray-700">{{ $dataReport->produsen_data }}</p>
         </div>
+        <div>
+            <p class="text-xs text-gray-400 mb-1">Tahun Data</p>
+            <p class="text-sm font-medium text-gray-700">{{ $dataReport->tahun_data }}</p>
+        </div>
     </div>
 
     <div class="mb-4">

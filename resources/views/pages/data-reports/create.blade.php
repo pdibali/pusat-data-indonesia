@@ -24,7 +24,7 @@
             <div class="flex-1">
                 <input type="text" name="nama_data" value="{{ old('nama_data') }}" required maxlength="255"
                        placeholder="Contoh: Jumlah Produksi Padi per Kecamatan"
-                       class="w-full p-2 rounded-md border-2 border-gray-300 text-sm focus:border-sky-400 focus:ring-sky-400 @error('nama_data') border-red-400 @enderror">
+                      class="w-full p-2 rounded-md border-2 text-sm focus:border-sky-400 focus:ring-sky-400 @error('nama_data') border-red-400 @else border-gray-300 @enderror">
                 @error('nama_data') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
@@ -47,8 +47,21 @@
             <div class="flex-1">
                 <input type="text" name="produsen_data" value="{{ old('produsen_data') }}" required maxlength="255"
                        placeholder="Contoh: Dinas Pertanian Provinsi Bali"
-                       class="w-full p-2 rounded-md border-2 border-gray-300 text-sm focus:border-sky-400 focus:ring-sky-400 @error('produsen_data') border-red-400 @enderror">
+                      class="w-full p-2 rounded-md border-2 text-sm focus:border-sky-400 focus:ring-sky-400 @error('produsen_data') border-red-400 @else border-gray-300 @enderror">
                 @error('produsen_data') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+            </div>
+        </div>
+
+        {{-- Tahun Data --}}
+        <div class="md:flex md:items-start md:gap-6">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5 md:mb-0 md:w-48 md:pt-2.5 md:shrink-0">
+                Tahun Data <span class="text-red-500">*</span>
+            </label>
+            <div class="flex-1">
+                <input type="text" name="tahun_data" value="{{ old('tahun_data') }}" required maxlength="50"
+                       placeholder="Contoh: 2021,2023,2026"
+                      class="w-full p-2 rounded-md border-2 text-sm focus:border-sky-400 focus:ring-sky-400 @error('tahun_data') border-red-400 @else border-gray-300 @enderror">
+                @error('tahun_data') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 

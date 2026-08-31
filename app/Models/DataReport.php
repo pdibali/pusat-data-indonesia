@@ -8,7 +8,7 @@ class DataReport extends Model
 {
     protected $fillable = [
         'user_id', 'nama_data', 'location_id', 'produsen_data',
-        'deskripsi_kesalahan', 'status', 'admin_notes', 'reviewed_by', 'reviewed_at',
+        'tahun_data', 'deskripsi_kesalahan', 'status', 'admin_notes', 'reviewed_by', 'reviewed_at',
     ];
     protected $casts = ['reviewed_at' => 'datetime'];
 

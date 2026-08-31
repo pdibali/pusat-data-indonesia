@@ -31,6 +31,7 @@ class DataReportController extends Controller
             'nama_data'           => ['required', 'string', 'max:255'],
             'location_id'         => ['required', 'integer', 'exists:location,location_id'],
             'produsen_data'       => ['required', 'string', 'max:255'],
+            'tahun_data'          => ['required', 'string', 'max:50'],
             'deskripsi_kesalahan' => ['required', 'string', 'max:2000'],
         ]);
 
