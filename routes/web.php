@@ -176,6 +176,7 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
     Route::prefix('admin')->name('admin.')->middleware('is.reviewer')->group(function () {
         Route::resource('users',    UserController::class);
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
+        Route::post('users/{user}/verify', [UserController::class, 'verify'])->name('users.verify');
         Route::resource('groups',   GroupController::class);
         Route::resource('produsen', ProdusenController::class);
         Route::resource('rujukan',  RujukanController::class);

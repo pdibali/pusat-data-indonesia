@@ -381,25 +381,6 @@
                         <strong>Metadata</strong>, dengan klik <strong>Export Template</strong>
                         untuk menggunakan template input data.
                     </p>
-                    {{-- <div class="flex flex-wrap gap-1.5 mb-3">
-                        @foreach(['metadata_id','nama_metadata','location_id','nama_wilayah', 'rujukan_id'] as $col)
-                            <code class="px-2 py-0.5 rounded text-xs font-mono font-bold"
-                                style="background:#e0f2fe; color:#0369a1;">{{ $col }}</code>
-                        @endforeach
-                        <code class="px-2 py-0.5 rounded text-xs font-mono"
-                            style="background:#fef3c7; color:#92400e;">{{ date('Y') }}</code>
-                        <code class="px-2 py-0.5 rounded text-xs font-mono"
-                            style="background:#fef3c7; color:#92400e;">{{ date('Y') + 1}}</code>
-                        <code class="px-2 py-0.5 rounded text-xs font-mono"
-                            style="background:#fef3c7; color:#92400e;">… dst</code>
-                    </div>
-                    <p class="text-xs text-gray-500">
-                        Format kolom periode yang didukung:
-                        <code class="bg-gray-100 px-1 rounded">{{ date('Y') }}</code> (Tahunan) ·
-                        <code class="bg-gray-100 px-1 rounded">{{ date('Y') }}_Q1</code> (Quarter) ·
-                        <code class="bg-gray-100 px-1 rounded">{{ date('Y') }}_S1</code> (Semester) ·
-                        <code class="bg-gray-100 px-1 rounded">Jan_{{ date('Y') }}</code> (Bulanan)
-                    </p> --}}
                 </div>
 
                 {{-- Drop Zone --}}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Group;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -111,6 +112,18 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', "User {$user->name} berhasil {$status}.");
+    }
+
+    public function verify(User $user)
+    {
+        abort_unless(Auth::user()?->group_id === 1, 403);
+
+        if ($user->activation !== 'activated') {
+            $user->update(['activation' => 'activated']);
+        }
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "User {$user->name} berhasil diverifikasi.");
     }
 
     public function unlock(User $user)

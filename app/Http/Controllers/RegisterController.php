@@ -104,7 +104,7 @@ class RegisterController extends Controller
 
         $message = $mailSent
             ? 'Registrasi berhasil! Silakan cek email untuk verifikasi akun.'
-            : 'Registrasi berhasil! Namun email verifikasi gagal dikirim. Silakan hubungi admin atau coba lagi nanti.';
+            : 'Registrasi berhasil! Namun email verifikasi gagal dikirim. Silakan hubungi admin melalui email pusatdataindonesiabali@gmail.com untuk mendapatkan bantuan.';
 
         if ($request->filled('invitation_token')) {
             $invitationService = app(OrganizationInvitationService::class);

@@ -145,6 +145,17 @@
                                 </button>
                             @endif
                         </form>
+                        @if (auth()->user()?->group_id === 1 && $user->activation !== 'activated')
+                            <form action="{{ route('admin.users.verify', $user) }}" method="POST" class="flex-1">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-1.5 p-2 rounded-md bg-indigo-500/10 text-indigo-400 text-xs"
+                                        title="Verifikasi user"
+                                        onclick="return confirm('Yakin ingin memverifikasi user {{ addslashes($user->name) }}?')">
+                                    <i class="fas fa-user-check text-xs"></i> Verifikasi
+                                </button>
+                            </form>
+                        @endif
                         @if ($user->locked_at)
                             <form action="{{ route('admin.users.unlock', $user) }}" method="POST" class="flex-1">
                                 @csrf
@@ -238,6 +249,18 @@
                                                 </button>
                                             @endif
                                         </form>
+
+                                        @if (auth()->user()?->group_id === 1 && $user->activation !== 'activated')
+                                            <form action="{{ route('admin.users.verify', $user) }}" method="POST">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="p-1.5 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition"
+                                                        title="Verifikasi user"
+                                                        onclick="return confirm('Yakin ingin memverifikasi user {{ addslashes($user->name) }}?')">
+                                                    <i class="fas fa-user-check text-xs"></i>
+                                                </button>
+                                            </form>
+                                        @endif
 
                                         @if ($user->locked_at)
                                             <form action="{{ route('admin.users.unlock', $user) }}" method="POST" style="display: inline;">
