@@ -114,6 +114,49 @@ class MetadataImportController extends Controller
         
     ];
 
+    // ─────────────────────────────────────────────────────────────
+    // UPDATE MASSAL — mapping header Excel → field database
+    // ─────────────────────────────────────────────────────────────
+    private const HEADER_ALIASES = [
+        'metadata_id'             => 'metadata_id',
+        'id'                      => 'metadata_id',
+        'nama'                    => 'nama',
+        'alias'                   => 'alias',
+        'konsep'                  => 'konsep',
+        'definisi'                => 'definisi',
+        'klasifikasi'             => 'klasifikasi_id',
+        'asumsi'                  => 'asumsi',
+        'metodologi'              => 'metodologi',
+        'penjelasan metodologi'   => 'penjelasan_metodologi',
+        'tipe data'               => 'tipe_data',
+        'satuan data'             => 'satuan_data',
+        'tahun mulai data'        => 'tahun_mulai_data',
+        'tahun metadata'          => 'tahun_metadata',
+        'frekuensi penerbitan'    => 'frekuensi_penerbitan',
+        'tahun data tersedia'     => 'tahun_data_tersedia',
+        'bulan pertama rilis'     => 'bulan_pertama_rilis',
+        'tanggal rilis'           => 'tanggal_rilis',
+        'sumber metadata pertama' => 'sumber_metadata_pertama',
+        'produsen'                => 'sumber_metadata_pertama',
+        'tag'                     => 'tag',
+        'flag desimal'            => 'flag_desimal',
+        'tipe group'              => 'tipe_group',
+        'group by'                => 'group_by',
+        'status'                  => 'status',
+    ];
+
+    private const UPDATE_FIELD_LABELS = [
+        'nama' => 'Nama', 'alias' => 'Alias', 'konsep' => 'Konsep', 'definisi' => 'Definisi',
+        'klasifikasi_id' => 'Klasifikasi', 'asumsi' => 'Asumsi', 'metodologi' => 'Metodologi',
+        'penjelasan_metodologi' => 'Penjelasan Metodologi', 'tipe_data' => 'Tipe Data',
+        'satuan_data' => 'Satuan Data', 'tahun_mulai_data' => 'Tahun Mulai Data',
+        'tahun_metadata' => 'Tahun Metadata', 'frekuensi_penerbitan' => 'Frekuensi Penerbitan',
+        'tahun_data_tersedia' => 'Tahun Data Tersedia', 'bulan_pertama_rilis' => 'Bulan Pertama Rilis',
+        'tanggal_rilis' => 'Tanggal Rilis', 'sumber_metadata_pertama' => 'Sumber Metadata Pertama',
+        'tag' => 'Tag', 'flag_desimal' => 'Flag Desimal', 'tipe_group' => 'Tipe Group',
+        'group_by' => 'Group By', 'status' => 'Status',
+    ];
+
     // Normalisasi kata
     private const ALIAS_WILAYAH = [
 
@@ -479,6 +522,290 @@ class MetadataImportController extends Controller
                 'message' => 'Gagal import: ' . $e->getMessage(),
             ], 422);
         }
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // UPDATE MASSAL — PREVIEW
+    // ═════════════════════════════════════════════════════════════
+    public function updatePreview(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls|max:20480',
+        ], [
+            'file.required' => 'File Excel wajib diupload.',
+            'file.mimes'    => 'Format file harus .xlsx atau .xls.',
+            'file.max'      => 'Ukuran file maksimal 20 MB.',
+        ]);
+
+        try {
+            $spreadsheet = IOFactory::load($request->file('file')->getRealPath());
+            $allRows     = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            if (count($allRows) < 1) {
+                return response()->json(['success' => false, 'message' => 'File kosong.'], 422);
+            }
+
+            $headerRow = array_shift($allRows);
+            $map       = $this->resolveUpdateHeaderMap($headerRow);
+
+            if (!isset($map['metadata_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kolom "metadata_id" atau "ID" wajib ada di file untuk fitur update massal.',
+                ], 422);
+            }
+
+            [$klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById] = $this->loadUpdateLookups();
+
+            $rows     = [];
+            $noChange = [];
+            $notFound = [];
+            $rowNum   = 2;
+
+            foreach ($allRows as $raw) {
+                if (empty(array_filter($raw, fn($v) => $v !== null && $v !== ''))) { $rowNum++; continue; }
+
+                $idVal = $raw[$map['metadata_id']] ?? null;
+
+                if (!is_numeric($idVal)) {
+                    $notFound[] = ['row' => $rowNum, 'metadata_id' => $idVal, 'reason' => 'ID tidak valid / kosong'];
+                    $rowNum++; continue;
+                }
+
+                $metadata = Metadata::find((int) $idVal);
+                if (!$metadata) {
+                    $notFound[] = ['row' => $rowNum, 'metadata_id' => $idVal, 'reason' => 'ID tidak ditemukan di database'];
+                    $rowNum++; continue;
+                }
+
+                [, $changes] = $this->buildUpdatePayload($raw, $map, $metadata, $klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById);
+
+                if (empty($changes)) {
+                    $noChange[] = ['row' => $rowNum, 'metadata_id' => $metadata->metadata_id, 'nama' => $metadata->nama];
+                    $rowNum++; continue;
+                }
+
+                $rows[] = [
+                    'row'         => $rowNum,
+                    'metadata_id' => $metadata->metadata_id,
+                    'nama'        => $metadata->nama,
+                    'field_count' => count($changes),
+                    'fields'      => array_map(fn($f) => self::UPDATE_FIELD_LABELS[$f] ?? $f, array_keys($changes)),
+                    'changes'     => $changes,
+                ];
+                $rowNum++;
+            }
+
+            return response()->json([
+                'success'        => true,
+                'total_rows'     => count($rows) + count($noChange) + count($notFound),
+                'to_update'      => count($rows),
+                'no_change'      => count($noChange),
+                'not_found'      => count($notFound),
+                'rows'           => $rows,
+                'no_change_rows' => $noChange,
+                'not_found_rows' => $notFound,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal membaca file: ' . $e->getMessage()], 422);
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // UPDATE MASSAL — STORE
+    // ═════════════════════════════════════════════════════════════
+    public function updateStore(Request $request)
+    {
+        $request->validate([
+            'file'        => 'required|file|mimes:xlsx,xls|max:20480',
+            'set_pending' => 'nullable|boolean',
+        ]);
+
+        $setPending = $request->boolean('set_pending', false);
+
+        try {
+            $spreadsheet = IOFactory::load($request->file('file')->getRealPath());
+            $allRows     = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            $headerRow = array_shift($allRows);
+            $map       = $this->resolveUpdateHeaderMap($headerRow);
+
+            if (!isset($map['metadata_id'])) {
+                return response()->json(['success' => false, 'message' => 'Kolom metadata_id wajib ada.'], 422);
+            }
+
+            [$klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById] = $this->loadUpdateLookups();
+
+            $updated = 0;
+            $skipped = 0;
+            $errors  = [];
+            $rowNum  = 2;
+
+            DB::transaction(function () use (
+                $allRows, $map, $setPending,
+                $klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById,
+                &$updated, &$skipped, &$errors, &$rowNum
+            ) {
+                foreach ($allRows as $raw) {
+                    if (empty(array_filter($raw, fn($v) => $v !== null && $v !== ''))) { $rowNum++; continue; }
+
+                    $idVal = $raw[$map['metadata_id']] ?? null;
+                    if (!is_numeric($idVal)) {
+                        $errors[] = ['row' => $rowNum, 'metadata_id' => $idVal, 'reason' => 'ID tidak valid'];
+                        $skipped++; $rowNum++; continue;
+                    }
+
+                    $metadata = Metadata::find((int) $idVal);
+                    if (!$metadata) {
+                        $errors[] = ['row' => $rowNum, 'metadata_id' => $idVal, 'reason' => 'ID tidak ditemukan'];
+                        $skipped++; $rowNum++; continue;
+                    }
+
+                    [$payload, $changes] = $this->buildUpdatePayload($raw, $map, $metadata, $klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById);
+
+                    if ($setPending) {
+                        $payload['status'] = Metadata::STATUS_PENDING;
+                    }
+
+                    if (empty($payload)) {
+                        $skipped++; $rowNum++; continue;
+                    }
+
+                    $metadata->update($payload);
+                    $updated++;
+                    $rowNum++;
+                }
+            });
+
+            return response()->json([
+                'success'     => true,
+                'updated'     => $updated,
+                'skipped'     => $skipped,
+                'error_count' => count($errors),
+                'errors'      => $errors,
+                'message'     => "{$updated} metadata berhasil diupdate. {$skipped} baris dilewati.",
+                'redirect'    => route('metadata.approval'),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal update: ' . $e->getMessage()], 422);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPERS UPDATE MASSAL
+    // ─────────────────────────────────────────────────────────────
+    private function resolveUpdateHeaderMap(array $headerRow): array
+    {
+        $map = [];
+        foreach ($headerRow as $colIndex => $label) {
+            if ($label === null) continue;
+            $key = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $label)));
+            if (isset(self::HEADER_ALIASES[$key]) && !isset($map[self::HEADER_ALIASES[$key]])) {
+                $map[self::HEADER_ALIASES[$key]] = $colIndex;
+            }
+        }
+        return $map;
+    }
+
+    private function loadUpdateLookups(): array
+    {
+        $klasifikasiById = \App\Models\Klasifikasi::pluck('nama_klasifikasi', 'klasifikasi_id')->toArray();
+        $klasifikasiByName = [];
+        foreach ($klasifikasiById as $id => $nama) $klasifikasiByName[mb_strtolower(trim($nama))] = $id;
+
+        $produsenById = ProdusenData::pluck('nama_produsen', 'produsen_id')->toArray();
+        $produsenByName = [];
+        foreach ($produsenById as $id => $nama) $produsenByName[mb_strtolower(trim($nama))] = $id;
+
+        return [$klasifikasiByName, $klasifikasiById, $produsenByName, $produsenById];
+    }
+
+    private function buildUpdatePayload(
+        array $raw, array $map, Metadata $metadata,
+        array $klasifikasiByName, array $klasifikasiById,
+        array $produsenByName, array $produsenById
+    ): array {
+        $payload = [];
+        $changes = [];
+
+        $textFields = ['nama','alias','konsep','definisi','asumsi','metodologi','penjelasan_metodologi',
+                    'tipe_data','satuan_data','tahun_mulai_data','frekuensi_penerbitan','tahun_data_tersedia'];
+        $intFields  = ['tahun_metadata','bulan_pertama_rilis','tanggal_rilis','flag_desimal','tipe_group','status'];
+
+        foreach ($map as $field => $colIndex) {
+            if ($field === 'metadata_id') continue;
+
+            $cell = $raw[$colIndex] ?? null;
+            if ($cell === null || trim((string) $cell) === '') continue; // sel kosong = tidak diubah
+            $cell = is_string($cell) ? trim($cell) : $cell;
+
+            if (in_array($field, $textFields, true)) {
+                $new = (string) $cell;
+                $old = (string) ($metadata->{$field} ?? '');
+                if ($new !== $old) { $payload[$field] = $new; $changes[$field] = ['old' => $old, 'new' => $new]; }
+                continue;
+            }
+
+            if (in_array($field, $intFields, true)) {
+                if (!is_numeric($cell)) continue;
+                $new = (int) $cell;
+                if ((int) $metadata->{$field} !== $new) { $payload[$field] = $new; $changes[$field] = ['old' => $metadata->{$field}, 'new' => $new]; }
+                continue;
+            }
+
+            if ($field === 'klasifikasi_id') {
+                $newId = is_numeric($cell) ? (int) $cell : ($klasifikasiByName[mb_strtolower((string) $cell)] ?? null);
+                if ($newId !== null && (int) $metadata->klasifikasi_id !== $newId) {
+                    $payload['klasifikasi_id'] = $newId;
+                    $changes['klasifikasi_id'] = [
+                        'old' => $klasifikasiById[$metadata->klasifikasi_id] ?? $metadata->klasifikasi_id,
+                        'new' => $klasifikasiById[$newId] ?? $newId,
+                    ];
+                }
+                continue;
+            }
+
+            if ($field === 'sumber_metadata_pertama') {
+                $newId = is_numeric($cell) ? (int) $cell : ($produsenByName[mb_strtolower((string) $cell)] ?? null);
+                if ($newId !== null && (int) $metadata->sumber_metadata_pertama !== $newId) {
+                    $payload['sumber_metadata_pertama'] = $newId;
+                    $changes['sumber_metadata_pertama'] = [
+                        'old' => $produsenById[$metadata->sumber_metadata_pertama] ?? $metadata->sumber_metadata_pertama,
+                        'new' => $produsenById[$newId] ?? $newId,
+                    ];
+                }
+                continue;
+            }
+
+            if ($field === 'group_by') {
+                if (!is_numeric($cell)) continue;
+                $newId = (int) $cell;
+                if ($newId === $metadata->metadata_id) continue;
+                $exists = Metadata::where('metadata_id', $newId)->where('status', Metadata::STATUS_ACTIVE)->exists();
+                if (!$exists) continue;
+                if ((int) $metadata->group_by !== $newId) {
+                    $payload['group_by'] = $newId;
+                    $changes['group_by'] = ['old' => $metadata->group_by, 'new' => $newId];
+                }
+                continue;
+            }
+
+            if ($field === 'tag') {
+                $decoded = json_decode((string) $cell, true);
+                $new = is_array($decoded) ? implode(', ', array_map('trim', $decoded)) : (string) $cell;
+                $old = (string) ($metadata->tag ?? '');
+                if ($new !== $old) { $payload['tag'] = $new; $changes['tag'] = ['old' => $old, 'new' => $new]; }
+                continue;
+            }
+        }
+
+        return [$payload, $changes];
     }
     private function countExcelRows(string $filePath): int
     {

@@ -306,44 +306,54 @@
                             <div class="flex items-center justify-center gap-1.5 flex-wrap">
 
                                 <a href="{{ route('metadata.detail', ['metadata' => $item->metadata_id, 'from' => 'approval']) }}"
-                                   class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold
-                                          text-white rounded-md transition-colors shadow-sm btn-primary">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    Detail
+                                title="Detail"
+                                class="inline-flex items-center justify-center w-8 h-8 text-sm font-semibold
+                                        text-white rounded-md transition-colors shadow-sm btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+
+                                <a href="{{ route('metadata.edit', $item->metadata_id) }}"
+                                title="Edit"
+                                class="inline-flex items-center justify-center w-8 h-8 text-sm font-semibold
+                                        text-white rounded-md transition-colors shadow-sm"
+                                style="background:#e9ba0e;"
+                                onmouseover="this.style.background='#b45309'"
+                                onmouseout="this.style.background='#e9ba0e'">
+                                    <i class="fas fa-pen-to-square"></i>
                                 </a>
 
                                 @if((int)$item->status === 1)
                                     <button onclick="quickApprove({{ $item->metadata_id }}, '{{ addslashes($item->nama) }}', this)"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold
-                                                   text-white rounded-md transition-colors shadow-sm"
+                                            title="Approve"
+                                            class="inline-flex items-center justify-center w-8 h-8 text-sm font-semibold
+                                                text-white rounded-md transition-colors shadow-sm"
                                             style="background:#22c55e;"
                                             onmouseover="this.style.background='#16a34a'"
                                             onmouseout="this.style.background='#22c55e'">
                                         <i class="fas fa-check"></i>
-                                        Approve
                                     </button>
                                 @endif
 
                                 @if((int)$item->status === 2)
                                     <button onclick="quickReject({{ $item->metadata_id }}, '{{ addslashes($item->nama) }}', this)"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold
-                                                   rounded-md transition-colors shadow-sm"
+                                            title="Nonaktifkan"
+                                            class="inline-flex items-center justify-center w-8 h-8 text-sm font-semibold
+                                                rounded-md transition-colors shadow-sm"
                                             style="border:1px solid #fca5a5; color:#ef4444; background:transparent;"
                                             onmouseover="this.style.background='#fef2f2'"
                                             onmouseout="this.style.background='transparent'">
                                         <i class="fas fa-ban"></i>
-                                        Nonaktifkan
                                     </button>
                                 @endif
                                 @if((int)$item->status === 3)
                                     <button onclick="quickReactivate({{ $item->metadata_id }}, '{{ addslashes($item->nama) }}', this)"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold
-                                                   text-white rounded-md transition-colors shadow-sm"
+                                            title="Aktifkan"
+                                            class="inline-flex items-center justify-center w-8 h-8 text-sm font-semibold
+                                                text-white rounded-md transition-colors shadow-sm"
                                             style="background:#22c55e;"
                                             onmouseover="this.style.background='#16a34a'"
                                             onmouseout="this.style.background='#22c55e'">
                                         <i class="fas fa-redo"></i>
-                                        Aktifkan
                                     </button>
                                 @endif
                             </div>

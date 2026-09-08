@@ -388,6 +388,10 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
     Route::post('/metadata/import/preview', [MetadataImportController::class, 'preview'])->name('metadata.import.preview');
     Route::post('/metadata/import/store',   [MetadataImportController::class, 'store'])->name('metadata.import.store');
     
+    // ── Update Massal Excel ────────────────────────────────────
+    Route::post('/metadata/update-massal/preview', [MetadataImportController::class, 'updatePreview'])->name('metadata.update_massal.preview');
+    Route::post('/metadata/update-massal/store',   [MetadataImportController::class, 'updateStore'])->name('metadata.update_massal.store');
+    
     // ── Bulk Approve ───────────────────────────────────────────
     Route::post('/metadata/bulk-approve',     [MetadataController::class, 'bulkApprove'])->name('metadata.bulk_approve');
     Route::post('/metadata/bulk-approve-all', [MetadataController::class, 'bulkApproveAll'])->name('metadata.bulk_approve_all');

@@ -41,6 +41,12 @@
                        flex items-center gap-2 transition-colors">
                 <i class="fas fa-file-excel"></i> Import Excel
             </button>
+            <button type="button" id="tabUpdateBtn"
+                onclick="switchTab('update')"
+                class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-md border border-b-0
+                    flex items-center gap-2 transition-colors">
+                <i class="fas fa-sync-alt"></i> Bulk Update
+            </button>
         </div>
 
         {{-- ══════════════════════════════════════════════════
@@ -559,8 +565,194 @@
 
         </div>
 
+        {{-- ══════════════════════════════════════════════════
+            TAB 3: UPDATE MASSAL
+        ══════════════════════════════════════════════════ --}}
+        <div id="tabUpdate" class="hidden">
+
+            {{-- PANDUAN --}}
+            <div class="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                <p class="font-semibold mb-1 flex items-center text-amber-600 gap-2">
+                    <i class="fas fa-info-circle"></i> Panduan Bulk Update (Update Massal)
+                </p>
+                <ul class="list-disc list-inside space-y-1 text-xs mt-1 text-gray-700">
+                    <li>File wajib punya kolom <strong>metadata_id</strong> (atau <strong>ID</strong>) untuk mencocokkan baris dengan data di database</li>
+                    <li>Kolom yang tidak ingin diubah boleh dikosongkan,  cocokkan nama header dengan field yang ingin diupdate (misal: <em>Konsep, Definisi, Metodologi, Tag</em>, dsb.)</li>
+                    <li>Sel yang <strong>dikosongkan</strong> di Excel dianggap "tidak diubah"</li>
+                    <li>Gunakan hasil <strong>Export Metadata</strong> sebagai template update, lengkapi kolom yang masih kosong, lalu upload file kembali di sini</li>
+                </ul>
+            </div>
+
+            {{-- UPLOAD AREA --}}
+            <div class="py-5">
+                <div>
+                    <label class="block font-medium text-sm mb-2">
+                        Upload File Excel (Data yang Sudah Dilengkapi) <span class="text-red-500">*</span>
+                    </label>
+
+                    <div id="dropZoneUpdate"
+                        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center
+                                cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-colors"
+                        onclick="document.getElementById('updateFile').click()"
+                        ondragover="event.preventDefault(); this.classList.add('border-amber-400','bg-amber-50')"
+                        ondragleave="this.classList.remove('border-amber-400','bg-amber-50')"
+                        ondrop="handleUpdateDrop(event)">
+                        <i class="fas fa-file-excel text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-sm font-medium text-gray-600">
+                            Klik atau seret file Excel ke sini
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">.xlsx atau .xls, maksimal 20 MB</p>
+                        <input type="file" id="updateFile" accept=".xlsx,.xls" class="hidden"
+                            onchange="onUpdateFileSelected(this)">
+                    </div>
+
+                    <div id="updateFileInfo" class="hidden mt-3 flex items-center gap-3 p-3 bg-green-50
+                                                border border-green-200 rounded-lg text-sm text-green-700">
+                        <i class="fas fa-file-excel text-green-500 text-lg shrink-0"></i>
+                        <div class="flex-1 min-w-0">
+                            <p id="updateFileName" class="font-semibold truncate"></p>
+                            <p id="updateFileSize" class="text-xs text-green-500"></p>
+                        </div>
+                        <button type="button" onclick="clearUpdateFile()"
+                                class="text-green-400 hover:text-red-500 transition-colors shrink-0">
+                            <i class="fas fa-times-circle text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- OPSI --}}
+                <div class="flex flex-wrap gap-4 py-5 items-center">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <input type="checkbox" id="setPendingAfterUpdate"
+                            class="rounded border-gray-300 text-sky-600 focus:ring-sky-400">
+                        <span>Ajukan ulang ke approval admin (status → Pending) setelah update</span>
+                    </label>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="button" id="btnPreviewUpdate" onclick="doUpdatePreview()"
+                        class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-md text-sm
+                            font-semibold flex items-center gap-2 transition-colors
+                            disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-eye"></i> Preview Perubahan
+                    </button>
+                    <button type="button" id="btnApplyUpdate" onclick="doUpdateStore()"
+                        class="hidden bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-md
+                            text-sm font-semibold flex items-center gap-2 transition-colors">
+                        <i class="fas fa-save"></i> Terapkan Update
+                        <span id="updateCount" class="bg-white text-emerald-600 text-xs font-bold
+                                                    px-1.5 py-0.5 rounded-full">0</span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- LOADING --}}
+            <div id="updateLoading" class="hidden mt-6 flex flex-col items-center gap-3 py-10">
+                <div class="w-10 h-10 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin"></div>
+                <p class="text-sm text-gray-500 font-medium">Membaca dan membandingkan data...</p>
+            </div>
+
+            {{-- HASIL PREVIEW --}}
+            <div id="updatePreviewResult" class="hidden mt-6 space-y-4">
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="updateStatsBar"></div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
+                        <i class="fas fa-table text-amber-500"></i> Metadata yang Akan Diupdate
+                    </h3>
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider
+                                            text-xs border-b sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2.5 font-semibold w-12">Row</th>
+                                        <th class="px-3 py-2.5 font-semibold w-16">ID</th>
+                                        <th class="px-3 py-2.5 font-semibold min-w-48">Nama</th>
+                                        <th class="px-3 py-2.5 font-semibold text-center w-24">Field Berubah</th>
+                                        <th class="px-3 py-2.5 font-semibold">Preview Field</th>
+                                        <th class="px-3 py-2.5 font-semibold text-center w-20">Detail</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="updatePreviewBody" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Not found / no-change --}}
+                <div id="updateIssuesSection" class="hidden">
+                    <button type="button" onclick="toggleUpdateIssues()"
+                        class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 mb-2">
+                        <i class="fas fa-chevron-down" id="updateIssuesChevron"></i>
+                        <span id="updateIssuesLabel">Lihat baris bermasalah / tanpa perubahan</span>
+                    </button>
+                    <div id="updateIssuesTable" class="hidden border rounded-lg overflow-hidden">
+                        <table class="w-full text-xs">
+                            <thead class="bg-amber-50 border-b text-amber-700 text-left sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 font-semibold w-12">Row</th>
+                                    <th class="px-3 py-2 font-semibold">ID / Nama</th>
+                                    <th class="px-3 py-2 font-semibold">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="updateIssuesBody" class="divide-y divide-gray-100 bg-amber-50/30"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="updateResult" class="hidden mt-4"></div>
+            <div id="updateErrors" class="hidden mt-4"></div>
+
+        </div>
+
     </div>
 </div>
+
+{{-- ══════════════════════════════════════════════════
+     MODAL: DETAIL PERUBAHAN PER METADATA
+══════════════════════════════════════════════════ --}}
+<div id="updateDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" onclick="closeUpdateDetailModal()"></div>
+
+    <div class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center px-5 py-4 border-b">
+            <div>
+                <h3 class="text-sm font-bold text-gray-800">Detail Perubahan</h3>
+                <p id="modalMetaLabel" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <button type="button" onclick="closeUpdateDetailModal()"
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto px-5 py-4 flex-1">
+            <table class="w-full text-xs">
+                <thead class="text-gray-400 uppercase text-xs border-b">
+                    <tr>
+                        <th class="py-2 text-left font-semibold w-1/4">Field</th>
+                        <th class="py-2 text-left font-semibold">Nilai Lama</th>
+                        <th class="py-2 text-left font-semibold w-6"></th>
+                        <th class="py-2 text-left font-semibold">Nilai Baru</th>
+                    </tr>
+                </thead>
+                <tbody id="modalDetailBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+
+        <div class="px-5 py-3 border-t flex justify-end">
+            <button type="button" onclick="closeUpdateDetailModal()"
+                    class="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <style>
 .ts-wrapper {
@@ -687,14 +879,17 @@ function safeGet(id) {
    TAB SWITCHER
    ============================================================ */
 function switchTab(tab) {
-    const isManual = tab === 'manual';
+    const tabs = ['manual', 'excel', 'update'];
+    tabs.forEach(t => {
+        const contentId = t === 'manual' ? 'tabManual' : (t === 'excel' ? 'tabExcel' : 'tabUpdate');
+        const btnId     = t === 'manual' ? 'tabManualBtn' : (t === 'excel' ? 'tabExcelBtn' : 'tabUpdateBtn');
+        const isActive  = t === tab;
 
-    document.getElementById('tabManual').classList.toggle('hidden', !isManual);
-    document.getElementById('tabExcel').classList.toggle('hidden',  isManual);
+        document.getElementById(contentId).classList.toggle('hidden', !isActive);
 
-    const base = 'tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-md border border-b-0 flex items-center gap-2 transition-colors ';
-    document.getElementById('tabManualBtn').className = base + (isManual  ? 'tab-btn-active' : 'tab-btn-inactive');
-    document.getElementById('tabExcelBtn').className  = base + (!isManual ? 'tab-btn-active' : 'tab-btn-inactive');
+        const base = 'tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-md border border-b-0 flex items-center gap-2 transition-colors ';
+        document.getElementById(btnId).className = base + (isActive ? 'tab-btn-active' : 'tab-btn-inactive');
+    });
 }
 
 /* ============================================================
@@ -1209,6 +1404,319 @@ function toggleSkipped() {
     skippedOpen = !skippedOpen;
     document.getElementById('skippedTable').classList.toggle('hidden', !skippedOpen);
     document.getElementById('skippedChevron').className = skippedOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+}
+
+/* ============================================================
+   UPDATE MASSAL — CONSTANTS & STATE
+   ============================================================ */
+const UPDATE_PREVIEW_URL = '{{ route("metadata.update_massal.preview") }}';
+const UPDATE_STORE_URL   = '{{ route("metadata.update_massal.store") }}';
+
+let currentUpdateFile = null;
+let updatePreviewRows = [];
+let updateIssueRows   = [];
+let updateIssuesOpen  = false;
+
+/* ============================================================
+   FILE HANDLING — UPDATE MASSAL
+   ============================================================ */
+function onUpdateFileSelected(input) {
+    if (input.files && input.files[0]) setUpdateFile(input.files[0]);
+}
+
+function handleUpdateDrop(event) {
+    event.preventDefault();
+    document.getElementById('dropZoneUpdate').classList.remove('border-amber-400', 'bg-amber-50');
+    const file = event.dataTransfer.files[0];
+    if (file) setUpdateFile(file);
+}
+
+function setUpdateFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls'].includes(ext)) {
+        showUpdateAlert('error', 'Format file tidak didukung. Gunakan .xlsx atau .xls.');
+        return;
+    }
+
+    currentUpdateFile = file;
+    safeSetText('updateFileName', file.name);
+    safeSetText('updateFileSize', formatFileSize(file.size));
+    document.getElementById('updateFileInfo').classList.remove('hidden');
+    document.getElementById('dropZoneUpdate').classList.add('hidden');
+    document.getElementById('btnPreviewUpdate').disabled = false;
+
+    resetUpdatePreview();
+}
+
+function clearUpdateFile() {
+    currentUpdateFile = null;
+    document.getElementById('updateFile').value = '';
+    document.getElementById('updateFileInfo').classList.add('hidden');
+    document.getElementById('dropZoneUpdate').classList.remove('hidden');
+    document.getElementById('btnPreviewUpdate').disabled = true;
+    resetUpdatePreview();
+}
+
+function resetUpdatePreview() {
+    document.getElementById('updatePreviewResult').classList.add('hidden');
+    document.getElementById('updateResult').classList.add('hidden');
+    document.getElementById('updateErrors').classList.add('hidden');
+    document.getElementById('btnApplyUpdate').classList.add('hidden');
+    updatePreviewRows = [];
+    updateIssueRows   = [];
+}
+
+/* ============================================================
+   PREVIEW — AJAX ke /metadata/update-massal/preview
+   ============================================================ */
+async function doUpdatePreview() {
+    if (!currentUpdateFile) return;
+
+    const loadingEl = safeGet('updateLoading');
+    const resultEl  = safeGet('updatePreviewResult');
+    const btnApply  = safeGet('btnApplyUpdate');
+    const btnPrev   = safeGet('btnPreviewUpdate');
+
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (resultEl) resultEl.classList.add('hidden');
+    document.getElementById('updateResult').classList.add('hidden');
+    if (btnApply) btnApply.classList.add('hidden');
+    if (btnPrev) btnPrev.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file',   currentUpdateFile);
+    formData.append('_token', CSRF);
+
+    try {
+        const resp = await fetch(UPDATE_PREVIEW_URL, { method: 'POST', body: formData });
+        const json = await resp.json();
+
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (btnPrev) btnPrev.disabled = false;
+
+        if (!json.success) {
+            showUpdateAlert('error', json.message || 'Gagal memproses file.');
+            return;
+        }
+
+        updatePreviewRows = json.rows || [];
+        updateIssueRows   = [
+            ...(json.not_found_rows || []).map(r => ({ ...r, type: 'not_found' })),
+            ...(json.no_change_rows || []).map(r => ({ ...r, type: 'no_change' })),
+        ];
+
+        renderUpdateStats(json);
+        renderUpdatePreviewTable(updatePreviewRows);
+        renderUpdateIssues(updateIssueRows);
+
+        if (resultEl) resultEl.classList.remove('hidden');
+
+        if (json.to_update > 0) {
+            safeSetText('updateCount', json.to_update);
+            if (btnApply) btnApply.classList.remove('hidden');
+        }
+
+    } catch (err) {
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (btnPrev) btnPrev.disabled = false;
+        showUpdateAlert('error', 'Terjadi kesalahan jaringan: ' + err.message);
+    }
+}
+
+/* ============================================================
+   STORE — AJAX ke /metadata/update-massal/store
+   ============================================================ */
+async function doUpdateStore() {
+    if (!currentUpdateFile) return;
+
+    const countEl    = document.getElementById('updateCount');
+    const countValue = countEl ? countEl.textContent.trim() : '0';
+
+    if (!confirm(`Terapkan update ke ${countValue} metadata?`)) return;
+
+    const btnApply = safeGet('btnApplyUpdate');
+    if (btnApply) {
+        btnApply.disabled = true;
+        btnApply.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Mengupdate...';
+    }
+
+    const formData = new FormData();
+    formData.append('file',   currentUpdateFile);
+    formData.append('_token', CSRF);
+    formData.append('set_pending', document.getElementById('setPendingAfterUpdate').checked ? '1' : '0');
+
+    try {
+        const resp = await fetch(UPDATE_STORE_URL, { method: 'POST', body: formData });
+        const json = await resp.json();
+
+        if (btnApply) {
+            btnApply.disabled = false;
+            btnApply.innerHTML =
+                `<i class="fas fa-save mr-2"></i> Terapkan Update
+                 <span id="updateCount" class="bg-white text-emerald-600 text-xs font-bold px-1.5 py-0.5 rounded-full">${countValue}</span>`;
+        }
+
+        if (json.success) {
+            const resultEl = safeGet('updateResult');
+            if (resultEl) resultEl.innerHTML =
+                `<div class="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                    <i class="fas fa-check-circle text-green-500 text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold">Update Berhasil!</p>
+                        <p class="mt-1">${escHtml(json.message)}</p>
+                        <a href="${escHtml(json.redirect)}" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-800 underline">
+                            <i class="fas fa-arrow-right"></i> Ke Halaman Approval →
+                        </a>
+                    </div>
+                </div>`;
+            if (resultEl) resultEl.classList.remove('hidden');
+            if (btnApply) btnApply.classList.add('hidden');
+
+            if (json.error_count && Array.isArray(json.errors) && json.errors.length > 0) {
+                const errEl = safeGet('updateErrors');
+                if (errEl) {
+                    errEl.innerHTML = `
+                        <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                            <p class="font-semibold">Beberapa baris tidak diupdate</p>
+                            <p class="text-xs mt-1">${json.error_count} baris gagal.</p>
+                            <div class="mt-3 overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead class="bg-yellow-100 text-yellow-800 text-left"><tr>
+                                        <th class="px-3 py-2">Row</th>
+                                        <th class="px-3 py-2">ID</th>
+                                        <th class="px-3 py-2">Alasan</th>
+                                    </tr></thead>
+                                    <tbody>` + json.errors.map(e => `
+                                        <tr>
+                                            <td class="px-3 py-2 text-gray-600">${escHtml(e.row)}</td>
+                                            <td class="px-3 py-2 text-gray-800">${escHtml(e.metadata_id)}</td>
+                                            <td class="px-3 py-2 text-yellow-900">${escHtml(e.reason)}</td>
+                                        </tr>
+                                    `).join('') + `</tbody></table></div></div>`;
+                    errEl.classList.remove('hidden');
+                }
+            }
+        } else {
+            showUpdateAlert('error', json.message || 'Update gagal.');
+        }
+
+    } catch (err) {
+        if (btnApply) btnApply.disabled = false;
+        showUpdateAlert('error', 'Terjadi kesalahan: ' + err.message);
+    }
+}
+
+/* ============================================================
+   RENDER — STATS, TABLE, ISSUES
+   ============================================================ */
+function renderUpdateStats(json) {
+    const stats = [
+        { label: 'Total Baris',    value: json.total_rows, color: '#f3f4f6', text: '#6b7280' },
+        { label: 'Akan Diupdate',  value: json.to_update,  color: '#dcfce7', text: '#15803d' },
+        { label: 'Tanpa Perubahan',value: json.no_change,  color: '#fef3c7', text: '#92400e' },
+        { label: 'ID Tidak Ditemukan', value: json.not_found, color: '#fee2e2', text: '#b91c1c' },
+    ];
+    document.getElementById('updateStatsBar').innerHTML = stats.map(s =>
+        `<div class="rounded-lg p-3 text-center" style="background:${s.color};">
+            <p class="text-2xl font-bold" style="color:${s.text};">${s.value}</p>
+            <p class="text-xs font-medium mt-0.5" style="color:${s.text};">${s.label}</p>
+        </div>`
+    ).join('');
+}
+
+function renderUpdatePreviewTable(rows) {
+    document.getElementById('updatePreviewBody').innerHTML = rows.length === 0
+        ? '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 italic">Tidak ada perubahan terdeteksi</td></tr>'
+        : rows.map((r, idx) => `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-3 py-2.5 text-gray-400">${r.row}</td>
+                <td class="px-3 py-2.5 text-gray-500 font-mono">${r.metadata_id}</td>
+                <td class="px-3 py-2.5"><p class="font-semibold text-gray-800">${escHtml(r.nama)}</p></td>
+                <td class="px-3 py-2.5 text-center">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background:#dbeafe; color:#1d4ed8;">
+                        ${r.field_count}
+                    </span>
+                </td>
+                <td class="px-3 py-2.5">
+                    <div class="flex flex-wrap gap-1">
+                        ${r.fields.slice(0, 3).map(f =>
+                            `<span class="px-2 py-0.5 rounded-full text-xs" style="background:#f0f9ff; color:#0369a1;">${escHtml(f)}</span>`
+                        ).join('')}
+                        ${r.fields.length > 3 ? `<span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">+${r.fields.length - 3} lagi</span>` : ''}
+                    </div>
+                </td>
+                <td class="px-3 py-2.5 text-center">
+                    <button type="button" onclick="openUpdateDetailModal(${idx})"
+                        class="text-sky-600 hover:text-sky-800 text-xs font-semibold inline-flex items-center gap-1">
+                        <i class="fas fa-search"></i> Lihat
+                    </button>
+                </td>
+            </tr>`
+        ).join('');
+}
+
+function renderUpdateIssues(rows) {
+    const section = document.getElementById('updateIssuesSection');
+    if (rows.length === 0) { section.classList.add('hidden'); return; }
+
+    section.classList.remove('hidden');
+    document.getElementById('updateIssuesLabel').textContent = `Lihat ${rows.length} baris bermasalah / tanpa perubahan`;
+    document.getElementById('updateIssuesBody').innerHTML = rows.map(r => `
+        <tr>
+            <td class="px-3 py-2 text-gray-400">${r.row}</td>
+            <td class="px-3 py-2 text-gray-600">${escHtml(r.metadata_id ?? '')} ${r.nama ? '— ' + escHtml(r.nama) : ''}</td>
+            <td class="px-3 py-2">
+                <span class="px-2 py-0.5 rounded-full text-xs"
+                    style="background:${r.type === 'not_found' ? '#fee2e2' : '#fef3c7'}; color:${r.type === 'not_found' ? '#b91c1c' : '#92400e'};">
+                    ${escHtml(r.reason || 'Tidak ada field yang berubah')}
+                </span>
+            </td>
+        </tr>`
+    ).join('');
+}
+
+function toggleUpdateIssues() {
+    updateIssuesOpen = !updateIssuesOpen;
+    document.getElementById('updateIssuesTable').classList.toggle('hidden', !updateIssuesOpen);
+    document.getElementById('updateIssuesChevron').className = updateIssuesOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+}
+
+function showUpdateAlert(type, msg) {
+    const isErr = type === 'error';
+    const el = document.getElementById('updateResult');
+    el.innerHTML =
+        `<div class="flex items-center gap-3 p-4 rounded-lg text-sm
+                     ${isErr ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}">
+            <i class="fas ${isErr ? 'fa-exclamation-circle text-red-500' : 'fa-check-circle text-green-500'} text-lg shrink-0"></i>
+            <p>${escHtml(msg)}</p>
+        </div>`;
+    el.classList.remove('hidden');
+}
+
+/* ============================================================
+   MODAL DETAIL PERUBAHAN
+   ============================================================ */
+function openUpdateDetailModal(idx) {
+    const row = updatePreviewRows[idx];
+    if (!row) return;
+
+    document.getElementById('modalMetaLabel').textContent = `ID ${row.metadata_id} — ${row.nama}`;
+
+    const body = document.getElementById('modalDetailBody');
+    body.innerHTML = Object.entries(row.changes).map(([field, val]) => `
+        <tr>
+            <td class="py-2.5 font-semibold text-gray-700 align-top">${escHtml(row.fields[Object.keys(row.changes).indexOf(field)] ?? field)}</td>
+            <td class="py-2.5 text-gray-400 align-top max-w-56 break-words">${val.old === '' || val.old === null ? '<span class="italic text-gray-300">(kosong)</span>' : escHtml(val.old)}</td>
+            <td class="py-2.5 text-gray-300 align-top text-center"><i class="fas fa-arrow-right"></i></td>
+            <td class="py-2.5 text-gray-800 font-medium align-top max-w-56 break-words">${escHtml(val.new)}</td>
+        </tr>`
+    ).join('');
+
+    document.getElementById('updateDetailModal').classList.remove('hidden');
+}
+
+function closeUpdateDetailModal() {
+    document.getElementById('updateDetailModal').classList.add('hidden');
 }
 
 function showImportAlert(type, msg) {
