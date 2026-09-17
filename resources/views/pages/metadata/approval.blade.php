@@ -570,7 +570,7 @@ async function quickApprove(id, nama, btn) {
         const json = await res.json();
         if (json.success) {
             fadeRemoveRow(btn.closest('tr'));
-            updateStatBadge(-1, 0, 1);
+            updateStatBadge(-1, 1, 0);
             showAlert('success', json.message);
         } else {
             setBtnLoading(btn, false);
