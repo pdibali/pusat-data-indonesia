@@ -650,8 +650,20 @@ class DataController extends Controller
 
     public function bulkApprove(Request $request)
     {
+        $validated = $request->validate([
+            'mode' => 'required|in:all,safe',
+        ]);
+
         $query = Data::where('status', Data::STATUS_PENDING);
         $this->applyApprovalFilters($query, $request);
+
+        if ($validated['mode'] === 'safe') {
+            $query->whereDoesntHave('anomalies')
+                ->whereNotIn('workflow_status', [
+                    Data::WORKFLOW_WARNING,
+                    Data::WORKFLOW_UNDER_REVIEW,
+                ]);
+        }
 
         $dataItems = $query->get();
         $count     = 0;

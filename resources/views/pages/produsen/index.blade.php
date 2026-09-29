@@ -20,11 +20,19 @@
     @include('layouts.alert')
 
     <form method="GET" action="{{ route('admin.produsen.index') }}"
-          class="card-panel p-3 flex gap-2">
+                    class="card-panel p-3 flex flex-wrap gap-2">
         <input type="text" name="search" value="{{ request('search') }}"
                placeholder="Cari nama, email, contact person..."
                class="flex-1 bg-white/5 border border-gray-600 text-gray-700 text-xs rounded-lg px-3 py-2
                       placeholder-gray-600 focus:outline-none focus:border-green-400/50">
+        <label class="flex items-center gap-2 text-xs text-gray-500">
+            Urutan
+            <select name="sort" onchange="this.form.submit()"
+                    class="bg-white border border-gray-300 text-gray-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-green-400/50">
+                <option value="terbaru" {{ request('sort', 'terbaru') === 'terbaru' ? 'selected' : '' }}>Terbaru</option>
+                <option value="terlama" {{ request('sort') === 'terlama' ? 'selected' : '' }}>Terlama</option>
+            </select>
+        </label>
         <button type="submit"
                 class="btn-primary text-xs">
             <i class="fas fa-search"></i> Cari

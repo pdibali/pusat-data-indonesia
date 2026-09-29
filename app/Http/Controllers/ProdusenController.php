@@ -21,7 +21,11 @@ class ProdusenController extends Controller
             });
         }
 
-        $produsen = $query->latest()->paginate(10)->withQueryString();
+        $sortDirection = $request->input('sort', 'terbaru') === 'terlama' ? 'asc' : 'desc';
+        $produsen = $query->orderBy('created_at', $sortDirection)
+            ->orderBy('produsen_id', $sortDirection)
+            ->paginate(10)
+            ->withQueryString();
 
         return view('pages.produsen.index', compact('produsen'));
     }

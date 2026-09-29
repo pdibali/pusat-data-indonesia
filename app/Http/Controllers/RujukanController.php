@@ -21,7 +21,11 @@ class RujukanController extends Controller
             $query->where('produsen_id', $request->produsen_id);
         }
 
-        $rujukans = $query->latest()->paginate(10)->withQueryString();
+        $sortDirection = $request->input('sort', 'terbaru') === 'terlama' ? 'asc' : 'desc';
+        $rujukans = $query->orderBy('created_at', $sortDirection)
+            ->orderBy('rujukan_id', $sortDirection)
+            ->paginate(10)
+            ->withQueryString();
         $produsen  = ProdusenData::orderBy('nama_produsen')->get();
 
         return view('pages.rujukan.index', compact('rujukans', 'produsen'));

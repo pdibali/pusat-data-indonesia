@@ -435,9 +435,48 @@
 
 </div>
 
+{{-- PILIHAN BULK APPROVE --}}
+<div id="bulkApproveChoiceModal"
+     class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+        <h3 class="font-bold text-gray-800 text-lg">Pilih Data yang Akan Disetujui</h3>
+        <p class="text-sm text-gray-500 mt-1">Pilih cakupan persetujuan. Pilihan berikutnya akan meminta konfirmasi.</p>
+        <div class="grid gap-3 mt-5">
+            <button type="button" onclick="confirmBulkApprove('all')"
+                class="group w-full flex items-center gap-4 text-left border-2 border-amber-200 bg-white hover:bg-amber-50 hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 rounded-lg p-4 transition-colors">
+                <span class="w-11 h-11 shrink-0 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-lg group-hover:bg-amber-200">
+                    <i class="fas fa-check-double"></i>
+                </span>
+                <span class="flex-1">
+                    <span class="block font-semibold text-gray-800">Approve Semua Data</span>
+                    <span class="block text-sm text-gray-500 mt-1">Termasuk data yang terdeteksi sebagai anomali.</span>
+                </span>
+                <i class="fas fa-chevron-right text-amber-500" aria-hidden="true"></i>
+            </button>
+            <button type="button" onclick="confirmBulkApprove('safe')"
+                class="group w-full flex items-center gap-4 text-left border-2 border-green-200 bg-white hover:bg-green-50 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 rounded-lg p-4 transition-colors">
+                <span class="w-11 h-11 shrink-0 rounded-lg bg-green-100 text-green-700 flex items-center justify-center text-lg group-hover:bg-green-200">
+                    <i class="fas fa-shield-check"></i>
+                </span>
+                <span class="flex-1">
+                    <span class="block font-semibold text-gray-800">Approve Data Aman</span>
+                    <span class="block text-sm text-gray-500 mt-1">Hanya data yang tidak memiliki catatan anomali.</span>
+                </span>
+                <i class="fas fa-chevron-right text-green-600" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="flex justify-end mt-5">
+            <button type="button" onclick="closeBulkApproveChoice()"
+                class="border border-gray-300 text-gray-600 hover:bg-gray-50 px-4 py-2 rounded-md text-sm transition-colors">
+                Batal
+            </button>
+        </div>
+    </div>
+</div>
+
 {{-- MODAL KONFIRMASI --}}
 <div id="confirmModal"
-     class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
+    class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
         <div class="flex items-center gap-3 mb-4">
             <div id="modalIcon"
@@ -517,24 +556,63 @@
         btn.textContent = isApprove ? 'Ya, Setujui' : 'Ya, Tolak';
 
         document.getElementById('confirmModal').classList.remove('hidden');
+        document.getElementById('confirmModal').classList.add('flex');
     }
 
     function closeModal() {
         document.getElementById('confirmModal').classList.add('hidden');
+        document.getElementById('confirmModal').classList.remove('flex');
         pendingAction = null;
         pendingId     = null;
     }
 
     function submitAction() {
+        if (pendingAction === 'bulk') {
+            document.getElementById('bulkApproveForm').submit();
+            return;
+        }
         if (!pendingAction || !pendingId) return;
         const formId = pendingAction + '-form-' + pendingId;
         document.getElementById(formId).submit();
     }
 
     // ── Bulk approve ──
-    function confirmBulkApprove() {
-        if (!confirm('Setujui semua data sesuai filter yang aktif?')) return;
-        document.getElementById('bulkApproveForm').submit();
+    function closeBulkApproveChoice() {
+        const choiceModal = document.getElementById('bulkApproveChoiceModal');
+        choiceModal.classList.add('hidden');
+        choiceModal.classList.remove('flex');
+    }
+
+    function confirmBulkApprove(mode = null) {
+        if (!mode) {
+            const choiceModal = document.getElementById('bulkApproveChoiceModal');
+            choiceModal.classList.remove('hidden');
+            choiceModal.classList.add('flex');
+            return;
+        }
+
+        const choiceModal = document.getElementById('bulkApproveChoiceModal');
+        choiceModal.classList.add('hidden');
+        choiceModal.classList.remove('flex');
+        pendingAction = 'bulk';
+        pendingId = null;
+
+        const isSafe = mode === 'safe';
+        document.getElementById('bulkApproveMode').value = mode;
+        document.getElementById('modalIcon').className =
+            'w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-green-100';
+        document.getElementById('modalIcon').innerHTML =
+            '<i class="fas fa-check-circle text-green-600 text-lg"></i>';
+        document.getElementById('modalTitle').textContent = 'Yakin menyetujui data?';
+        document.getElementById('modalDesc').textContent = isSafe
+            ? 'Hanya data aman yang tidak terdeteksi sebagai anomali akan disetujui sesuai filter aktif.'
+            : 'Semua data pending sesuai filter aktif akan disetujui, termasuk data yang terdeteksi sebagai anomali.';
+
+        const button = document.getElementById('modalConfirmBtn');
+        button.className = 'px-4 py-2 rounded-md text-sm font-semibold text-white transition-colors bg-green-500 hover:bg-green-600';
+        button.textContent = 'Ya, Setujui';
+        document.getElementById('confirmModal').classList.remove('hidden');
+        document.getElementById('confirmModal').classList.add('flex');
     }
 
     document.getElementById('confirmModal').addEventListener('click', function(e) {
@@ -583,6 +661,7 @@
 {{-- Bulk approve form (hidden) — ikut semua filter kolom yang aktif --}}
 <form id="bulkApproveForm" action="{{ route('data.bulk_approve') }}" method="POST" class="hidden">
     @csrf
+    <input type="hidden" id="bulkApproveMode" name="mode" value="all">
     @foreach(request()->only(['metadata_id','filter_lokasi','filter_tahun','filter_nilai_min','filter_nilai_max','filter_user','filter_tanggal_dari','filter_tanggal_sampai']) as $key => $val)
         <input type="hidden" name="{{ $key }}" value="{{ $val }}">
     @endforeach

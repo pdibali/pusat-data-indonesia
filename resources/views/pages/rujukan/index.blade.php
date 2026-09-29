@@ -44,6 +44,14 @@
                 </option>
             @endforeach
         </select>
+        <label class="flex items-center gap-2 text-xs text-gray-500">
+            Urutan
+            <select name="sort" form="filter-rujukan" onchange="this.form.submit()"
+                    class="bg-white border border-gray-300 text-gray-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-green-400/50">
+                <option value="terbaru" {{ request('sort', 'terbaru') === 'terbaru' ? 'selected' : '' }}>Terbaru</option>
+                <option value="terlama" {{ request('sort') === 'terlama' ? 'selected' : '' }}>Terlama</option>
+            </select>
+        </label>
         @if(request('search') || request('produsen_id'))
             <a href="{{ route('admin.rujukan.index') }}" class="text-xs text-gray-400 hover:text-red-500 px-2 py-2 transition flex items-center gap-1">
                 <i class="fas fa-times-circle"></i> Reset
