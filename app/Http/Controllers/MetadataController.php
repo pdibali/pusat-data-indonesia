@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Protection;
 use App\Models\Klasifikasi;
+use App\Models\Data;
 use App\Models\Metadata;
 use App\Models\ProdusenData;
 use App\Models\Satuan;
@@ -1004,6 +1005,24 @@ class MetadataController extends Controller
         $metadata = Metadata::where('metadata_id', $id)
             ->with(['klasifikasi:klasifikasi_id,nama_klasifikasi', 'produsen:produsen_id,nama_produsen'])
             ->firstOrFail();
+
+        $availableData = DB::table('data')
+            ->where('data.metadata_id', $metadata->metadata_id)
+            ->where('data.status', Data::STATUS_AVAILABLE);
+
+        $wilayahData = (clone $availableData)
+            ->join('location', 'data.location_id', '=', 'location.location_id')
+            ->distinct()
+            ->orderBy('location.nama_wilayah')
+            ->pluck('location.nama_wilayah')
+            ->values();
+
+        $rujukanData = (clone $availableData)
+            ->join('rujukan', 'data.rujukan_id', '=', 'rujukan.rujukan_id')
+            ->distinct()
+            ->orderBy('rujukan.nama_rujukan')
+            ->pluck('rujukan.nama_rujukan')
+            ->values();
     
         return response()->json([
             'metadata_id'              => $metadata->metadata_id,
@@ -1013,6 +1032,7 @@ class MetadataController extends Controller
             'definisi'                 => $metadata->definisi,
             'metodologi'               => $metadata->metodologi,
             'penjelasan_metodologi'    => $metadata->penjelasan_metodologi,
+            'asumsi'                   => $metadata->asumsi,
             'tipe_data'                => $metadata->tipe_data,
             'satuan_data'              => $metadata->satuan_data,
             'sub_nama_metadata'        => $metadata->sub_nama_metadata ?? [],
@@ -1023,6 +1043,8 @@ class MetadataController extends Controller
             'tahun_data_tersedia'      => $metadata->tahun_data_tersedia,
             'klasifikasi'              => $metadata->klasifikasi?->nama_klasifikasi,
             'produsen'                 => $metadata->produsen?->nama_produsen,
+            'wilayah_data'             => $wilayahData,
+            'rujukan'                  => $rujukanData,
             'status'                   => $metadata->status,
             'tag'                      => $metadata->tag,
             'date_inputed'             => $metadata->date_inputed,

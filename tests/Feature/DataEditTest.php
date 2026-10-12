@@ -38,6 +38,7 @@ class DataEditTest extends TestCase
             'nama' => 'Metadata Uji',
             'konsep' => 'Konsep uji',
             'definisi' => 'Definisi uji',
+            'asumsi' => 'Asumsi uji',
             'klasifikasi_id' => $klasifikasi->klasifikasi_id,
             'metodologi' => 'Metodologi uji',
             'penjelasan_metodologi' => 'Penjelasan metodologi uji',
@@ -84,6 +85,22 @@ class DataEditTest extends TestCase
             'workflow_status' => Data::WORKFLOW_DRAFT,
             'date_inputed' => now(),
         ]);
+
+        $datum->status = Data::STATUS_AVAILABLE;
+        $datum->save();
+
+        $metadataResponse = $this->getJson(route('metadata.detail_api', $metadata->metadata_id));
+        $metadataResponse
+            ->assertOk()
+            ->assertJsonPath('nama', 'Metadata Uji')
+            ->assertJsonPath('konsep', 'Konsep uji')
+            ->assertJsonPath('definisi', 'Definisi uji')
+            ->assertJsonPath('asumsi', 'Asumsi uji')
+            ->assertJsonPath('wilayah_data.0', 'Provinsi Bali')
+            ->assertJsonPath('rujukan.0', 'Rujukan Uji');
+
+        $datum->status = Data::STATUS_PENDING;
+        $datum->save();
 
         $response = $this->actingAs($user)->get(route('data.edit', $datum));
         $response->assertOk();

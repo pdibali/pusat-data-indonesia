@@ -83,22 +83,30 @@
                 {{-- Content (hidden while loading) --}}
                 <div id="mdContent" class="hidden space-y-5">
 
-                    {{-- Definisi --}}
                     <div>
-                        <p class="md-section-label">Definisi</p>
-                        <p id="mdDefinisi" class="md-section-body">—</p>
-                    </div>
-
-                    {{-- Konsep --}}
-                    <div id="mdKonsepWrap" class="hidden">
-                        <p class="md-section-label">Konsep</p>
-                        <p id="mdKonsep" class="md-section-body">—</p>
-                    </div>
-
-                    {{-- Metodologi --}}
-                    <div id="mdMetodologiWrap" class="hidden">
-                        <p class="md-section-label">Metodologi</p>
-                        <p id="mdMetodologi" class="md-section-body">—</p>
+                        <p class="md-section-label">Informasi Metadata</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            @foreach([
+                                'Nama Data' => 'mdNamaData',
+                                'Konsep' => 'mdKonsep',
+                                'Definisi' => 'mdDefinisi',
+                                'Metodologi' => 'mdMetodologi',
+                                'Penjelasan Metode' => 'mdPenjelasanMetode',
+                                'Produsen Data' => 'mdProdusenData',
+                                'Tipe Data' => 'mdTipeData',
+                                'Frekuensi Penerbitan' => 'mdFrekuensiPenerbitan',
+                                'Wilayah (Lokasi Data)' => 'mdWilayahData',
+                                'Satuan' => 'mdSatuanData',
+                                'Klasifikasi' => 'mdKlasifikasiData',
+                                'Asumsi' => 'mdAsumsi',
+                                'Rujukan' => 'mdRujukan',
+                            ] as $label => $fieldId)
+                                <div class="md-info-card">
+                                    <p class="md-info-label">{{ $label }}</p>
+                                    <p id="{{ $fieldId }}" class="md-info-value whitespace-pre-line">—</p>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
 
                     {{-- Grid info --}}
@@ -126,14 +134,6 @@
                                 Waktu Rilis
                             </p>
                             <p id="mdWaktuRilis" class="md-info-value">—</p>
-                        </div>
-
-                        <div class="md-info-card">
-                            <p class="md-info-label">
-                                <i class="fas fa-building text-sky-400 mr-1"></i>
-                                Produsen Data
-                            </p>
-                            <p id="mdProdusen" class="md-info-value">—</p>
                         </div>
 
                     </div>
@@ -332,27 +332,26 @@ function _populateModal(d) {
         subNamaWrap.classList.add('hidden');
     }
  
-    // Definisi (selalu tampil)
-    document.getElementById('mdDefinisi').textContent = d.definisi || 'Belum tersedia.';
-
-    // Konsep (opsional)
-    const konsepWrap = document.getElementById('mdKonsepWrap');
-    if (d.konsep) {
-        document.getElementById('mdKonsep').textContent = d.konsep;
-        konsepWrap.classList.remove('hidden');
-    } else {
-        konsepWrap.classList.add('hidden');
-    }
-
-    // Metodologi (opsional)
-    const metWrap = document.getElementById('mdMetodologiWrap');
-    const metText = [d.metodologi, d.penjelasan_metodologi].filter(Boolean).join('\n\n');
-    if (metText) {
-        document.getElementById('mdMetodologi').textContent = metText;
-        metWrap.classList.remove('hidden');
-    } else {
-        metWrap.classList.add('hidden');
-    }
+    const metadataValues = {
+        mdNamaData: d.nama,
+        mdKonsep: d.konsep,
+        mdDefinisi: d.definisi,
+        mdMetodologi: d.metodologi,
+        mdPenjelasanMetode: d.penjelasan_metodologi,
+        mdProdusenData: d.produsen,
+        mdTipeData: d.tipe_data,
+        mdFrekuensiPenerbitan: d.frekuensi_penerbitan,
+        mdWilayahData: d.wilayah_data,
+        mdSatuanData: d.satuan_data,
+        mdKlasifikasiData: d.klasifikasi,
+        mdAsumsi: d.asumsi,
+        mdRujukan: d.rujukan,
+    };
+    Object.entries(metadataValues).forEach(([elementId, value]) => {
+        const displayValue = Array.isArray(value) ? value.join('\n') : value;
+        document.getElementById(elementId).textContent =
+            displayValue && String(displayValue).trim() ? displayValue : '—';
+    });
 
     // Grid info
     document.getElementById('mdTahunMulai').textContent    = d.tahun_mulai_data     ?? '—';
@@ -365,9 +364,6 @@ function _populateModal(d) {
     const thn  = d.tahun_pertama_rilis ?? null;
     document.getElementById('mdWaktuRilis').textContent =
         [bln, thn].filter(Boolean).join(' ') || '—';
-
-    // Produsen
-    document.getElementById('mdProdusen').textContent = d.produsen ?? '—';
 
     // Tags
     const tagWrap = document.getElementById('mdTagWrap');
