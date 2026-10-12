@@ -23,6 +23,7 @@ use Illuminate\Support\Collection;
  * Format output (array):
  * [
  *   'metadata'       => Metadata model,
+ *   'metadata_fields'=> ordered label/value pairs for the export metadata section,
  *   'kabupaten'      => 'Kabupaten Gianyar',
  *   'produsen'       => 'BPS Kabupaten Gianyar / ...',
  *   'satuan'         => 'Jiwa',
@@ -66,11 +67,11 @@ class DataExportService
     public function build(int $metadataId, ?string $kabupaten = null, ?int $year = null): ?array
     {
         // ── 1. Ambil metadata ──────────────────────────────────
-        $metadata = Metadata::with('produsen')->find($metadataId);
+        $metadata = Metadata::with(['produsen', 'klasifikasi'])->find($metadataId);
         if (!$metadata) return null;
 
         // ── 2. Query data dengan filter ────────────────────────
-        $query = Data::with(['location', 'time'])
+        $query = Data::with(['location', 'time', 'rujukan'])
             ->where('status', Data::STATUS_AVAILABLE)
             ->where('metadata_id', $metadataId);
 
@@ -145,8 +146,40 @@ class DataExportService
             ? ''
             : min($numericYears) . '–' . max($numericYears);
 
+        $references = $rows
+            ->pluck('rujukan')
+            ->filter()
+            ->unique('rujukan_id')
+            ->map(fn ($reference) => $reference->nama_rujukan)
+            ->implode("\n");
+
+        $metadataFields = [
+            ['label' => 'Nama Data', 'value' => $metadata->nama],
+            ['label' => 'Konsep', 'value' => $metadata->konsep],
+            ['label' => 'Definisi', 'value' => $metadata->definisi],
+            ['label' => 'Metodologi', 'value' => $metadata->metodologi],
+            ['label' => 'Penjelasan Metode', 'value' => $metadata->penjelasan_metodologi],
+            ['label' => 'Produsen Data', 'value' => $metadata->produsen?->nama_produsen],
+            ['label' => 'Tipe Data', 'value' => $metadata->tipe_data],
+            ['label' => 'Frekuensi Penerbitan', 'value' => $metadata->frekuensi_penerbitan],
+            ['label' => 'Wilayah (Lokasi Data)', 'value' => $kabNama],
+            ['label' => 'Satuan', 'value' => $metadata->satuan_data],
+            ['label' => 'Klasifikasi', 'value' => $metadata->klasifikasi?->nama_klasifikasi],
+            ['label' => 'Asumsi', 'value' => $metadata->asumsi],
+            ['label' => 'Rujukan', 'value' => $references],
+        ];
+
+        $metadataFields = array_map(
+            fn(array $field) => [
+                'label' => $field['label'],
+                'value' => filled($field['value']) ? (string) $field['value'] : '-',
+            ],
+            $metadataFields
+        );
+
         return [
             'metadata'    => $metadata,
+            'metadata_fields' => $metadataFields,
             'kabupaten'   => $kabNama,
             'produsen'    => $metadata->produsen?->nama_produsen ?? '-',
             'satuan'      => $metadata->satuan_data ?? '',

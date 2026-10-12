@@ -293,11 +293,16 @@
                     {{ $loop->iteration }}. {{ $meta['nama'] }}
                 </td>
             </tr>
-            <tr><td style="width:180px; background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Konsep</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->konsep ?: '-' }}</td></tr>
-            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Definisi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->definisi ?: '-' }}</td></tr>
-            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Metodologi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->metodologi ?: '-' }}</td></tr>
-            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Penjelasan Metodologi</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->penjelasan_metodologi ?: '-' }}</td></tr>
-            <tr><td style="background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">Produsen Data</td><td style="border:1px solid #ccc; padding:6px;">{{ $m?->produsen?->nama_produsen ?: '-' }}</td></tr>
+            @foreach($meta['metadata_fields'] as $field)
+                <tr>
+                    <td style="width:180px; background:#f2f2f2; border:1px solid #ccc; padding:6px; font-weight:bold;">
+                        {{ $field['label'] }}
+                    </td>
+                    <td style="border:1px solid #ccc; padding:6px; white-space:pre-line;">
+                        {{ filled($field['value']) ? $field['value'] : '-' }}
+                    </td>
+                </tr>
+            @endforeach
         </table>
     @endforeach
 

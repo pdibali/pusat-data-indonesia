@@ -103,6 +103,7 @@ class DataImport
         $duplicates       = [];
         $invalid_metadata = [];
         $invalid_satuan   = [];
+        $seenInFile       = [];
     
         foreach ($dataRows as $rowNum => $row) {
             $result = $this->parseRow(
@@ -119,9 +120,10 @@ class DataImport
     
                 $key = "{$rec['metadata_id']}_{$rec['location_id']}_{$rec['time_id']}_{$rec['rujukan_id']}";
     
-                if (isset($this->existingSet[$key])) {
+                if (isset($this->existingSet[$key]) || isset($seenInFile[$key])) {   
                     $duplicates[] = array_merge($rec, ['row' => $rowNum]);
                 } else {
+                    $seenInFile[$key] = true;                                        
                     $previewRows[] = array_merge($rec, ['row' => $rowNum]);
                 }
             }

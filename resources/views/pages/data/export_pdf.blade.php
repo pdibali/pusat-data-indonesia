@@ -162,6 +162,27 @@
             text-align: right;
             margin-bottom: 10px;
         }
+
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+            margin-bottom: 16px;
+            table-layout: fixed;
+        }
+        .metadata-table th,
+        .metadata-table td {
+            border: 1px solid #d0d0d0;
+            padding: 5px 8px;
+            text-align: left;
+            vertical-align: top;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+        .metadata-table th {
+            width: 24%;
+            background: #f3f4f6;
+        }
     </style>
 </head>
 <body>
@@ -175,6 +196,17 @@
 </div>
 
 <div class="page-wrap">
+
+    <table class="metadata-table">
+        <tbody>
+            @foreach($metadata_fields as $field)
+                <tr>
+                    <th>{{ $field['label'] }}</th>
+                    <td>{{ $field['value'] }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
     {{-- Info tanggal cetak --}}
     <div class="meta-info">

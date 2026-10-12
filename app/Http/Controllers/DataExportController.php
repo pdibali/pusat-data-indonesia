@@ -116,6 +116,7 @@ class DataExportController extends Controller
                 'id'                     => $meta->metadata_id,
                 'name'                   => $meta->nama,
                 'name_label'             => 'Judul / Title',
+                'fields'                 => $payload['metadata_fields'],
                 'unit'                   => $payload['satuan'],
                 'unit_label'             => 'Satuan / Unit',
                 'producer'               => $payload['produsen'],
@@ -153,11 +154,8 @@ class DataExportController extends Controller
 
     /**
      * Bangun Spreadsheet PhpSpreadsheet mengikuti format file contoh:
-     *   Row 1  : kosong
-     *   Row 2  : Judul / Title (merge A:lastCol) — background #FFC000
-     *   Row 3  : Rentang Tahun / Year Range (merge) — background #FFC000
-     *   Row 4  : Header kolom (Kecamatan/District + tahun) — background #FFC000
-     *   Row 5+ : Data kecamatan
+     *   Sheet Metadata : Informasi metadata
+     *   Sheet Data     : Tabel data
      *   Last   : Baris total kabupaten — background #FFC000
      *   +1     : Kosong
      *   +2     : Sumber/Source
@@ -179,7 +177,38 @@ class DataExportController extends Controller
         $C_BORDER = '000000';
 
         $spreadsheet = new Spreadsheet();
-        $ws          = $spreadsheet->getActiveSheet()->setTitle('Data');
+        $metadataSheet = $spreadsheet->getActiveSheet()->setTitle('Informasi Metadata');
+        $metadataSheet->setCellValue('A1', 'Informasi Metadata');
+        $metadataSheet->mergeCells('A1:B1');
+        $metadataSheet->getStyle('A1:B1')->applyFromArray([
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $C_AMBER]],
+            'font' => ['bold' => true, 'size' => 12],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $metadataSheet->getColumnDimension('A')->setWidth(30);
+        $metadataSheet->getColumnDimension('B')->setWidth(100);
+        foreach ($p['metadata_fields'] as $index => $field) {
+            $row = $index + 2;
+            $metadataSheet->setCellValue("A{$row}", $field['label']);
+            $metadataSheet->setCellValue("B{$row}", $field['value']);
+            $metadataSheet->getStyle("A{$row}:B{$row}")->applyFromArray([
+                'borders' => ['allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D0D0D0'],
+                ]],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_TOP,
+                    'wrapText' => true,
+                ],
+            ]);
+            $metadataSheet->getStyle("A{$row}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
+                'font' => ['bold' => true],
+            ]);
+            $metadataSheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        }
+
+        $ws = $spreadsheet->createSheet()->setTitle('Data');
 
         // ── Row 2: Judul bilingual ─────────────────────────────
         $title = $meta->nama . ' / ' . $meta->nama;   // ID / EN (nama sama)

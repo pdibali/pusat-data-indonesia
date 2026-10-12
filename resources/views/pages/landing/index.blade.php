@@ -127,5 +127,42 @@
     })();
     </script>
 
+    {{-- Chatbot PDIB Bot (n8n) --}}
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+    <style>
+        :root {
+            --chat--color-primary: #e11d48;          /* ganti sesuai warna brand */
+            --chat--toggle--background: #e11d48;
+            --chat--toggle--hover--background: #be123c;
+            --chat--header--background: #e11d48;
+        }
+    </style>
+
+    {{-- <script type="module">
+        import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+        createChat({
+            webhookUrl: 'https://aba123.app.n8n.cloud/webhook/13b98354-b162-4106-98a1-448d9534f09f/chat',
+            mode: 'window',
+            showWelcomeScreen: false,
+            defaultLanguage: 'id',
+            initialMessages: [
+                'Halo! Aku PDIB Bot, asisten virtual PDIB.',
+                'Lagi nyari data apa nih?'
+            ],
+            i18n: {
+                id: {
+                    title: 'PDIB Bot',
+                    subtitle: 'Asisten Virtual Pusat Data Indonesia Bali',
+                    footer: '',
+                    getStarted: 'Mulai Chat',
+                    inputPlaceholder: 'Ketik pertanyaanmu...',
+                    closeButtonTooltip: 'Tutup',
+                },
+            },
+        });
+    </script> --}}
+
 </body>
 </html>

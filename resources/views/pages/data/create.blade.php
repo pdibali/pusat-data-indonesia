@@ -489,7 +489,7 @@
                             <div id="metaPager"
                                     class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs transition-colors"
                                     style="color:#7c3aed; border-top:1px solid #e9d5ff;"
-                                    onclick="showMore('meta')">
+                                    >
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"
                                     stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
                                 <span id="metaShowMoreTxt"></span>
@@ -532,7 +532,7 @@
                                 </table>
                             </div>
                             <div id="satuanPager" class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs"
-                                style="color:#4338ca; border-top:1px solid #c7d2fe;" onclick="showMore('satuan')"></div>
+                                style="color:#4338ca; border-top:1px solid #c7d2fe;"></div>
                         </div>
                     </div>
 
@@ -574,7 +574,7 @@
                             <div id="errPager"
                                     class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs
                                         text-red-500 border-t border-red-100 hover:bg-red-50 transition-colors"
-                                    onclick="showMore('err')">
+                                    >
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"
                                     stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
                                 <span id="errShowMoreTxt"></span>
@@ -616,7 +616,7 @@
                             <div id="dupPager"
                                     class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs
                                         text-amber-500 border-t border-amber-100 hover:bg-amber-50 transition-colors"
-                                    onclick="showMore('dup')">
+                                    >
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"
                                     stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
                                 <span id="dupShowMoreTxt"></span>
@@ -759,7 +759,7 @@
                                     class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs
                                         transition-colors"
                                     style="color:#c2410c; border-top:1px solid #fed7aa;"
-                                    onclick="showMore('out')">
+                                    >
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"
                                     stroke="currentColor" stroke-width="1.5">
                                     <path d="M4 6l4 4 4-4"/>
@@ -829,7 +829,7 @@
                                 </table>
                             </div>
                             <div id="unitPager" class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs"
-                                style="color:#be185d; border-top:1px solid #fbcfe8;" onclick="showMore('unit')"></div>
+                                style="color:#be185d; border-top:1px solid #fbcfe8;"></div>
                             <div class="px-4 py-2.5 flex items-center gap-4 text-xs flex-wrap" style="background:#fdf2f8; border-top:1px solid #fbcfe8;">
                                 <span class="flex items-center gap-1.5">
                                     <i class="fas fa-check text-green-500"></i>
@@ -1475,22 +1475,6 @@
 
     // RUJUKAN DATA
 
-
-    function resetWaktuFields() {
-        Object.keys(FIELD_MAP).forEach(key => {
-            const sel  = document.getElementById(FIELD_MAP[key]);
-            const hint = document.getElementById(HINT_MAP[key]);
-            sel.disabled = true;
-            sel.value    = '0';
-            sel.classList.add('bg-gray-50', 'text-gray-400');
-            sel.classList.remove('bg-white', 'text-gray-800', 'bg-sky-50', 'text-sky-700');
-            hint.textContent = '';
-        });
-        document.getElementById('selectedTimeId').value = '';
-        document.getElementById('waktuInfo').classList.add('hidden');
-        document.getElementById('waktuHint').classList.remove('hidden');
-    }
-
     // ══════════════════════════════════════════════════════════════
     // TAB SWITCHER
     // ══════════════════════════════════════════════════════════════
@@ -1510,7 +1494,7 @@
     // ══════════════════════════════════════════════════════════════
     let currentFile = null;
     let previewData = null;
-    const ROWS_PER_PAGE = 5;
+    let ROWS_PER_PAGE = 5;
     const sectionState = {
         err:  { data: [], page: 0, checkState: {} },
         dup:  { data: [], page: 0 },
@@ -1941,7 +1925,7 @@
 
             function updateOutlierSummary() {
                 const s     = sectionState.out;
-                const total = s.data.length;
+                const total = Object.keys(s.includeState).length;
 
                 const marked   = Object.values(s.markState).filter(Boolean).length;
                 const included = Object.values(s.includeState).filter(Boolean).length;
@@ -2059,7 +2043,7 @@
             }
 
             function updateUnitConflictSummary() {
-                const s = sectionState.unit, total = s.data.length;
+                const s = sectionState.unit, total = Object.keys(s.includeState).length;
                 const included = Object.values(s.includeState).filter(Boolean).length;
                 const marked   = Object.entries(s.markState).filter(([k,v]) => v && s.includeState[k] !== false).length;
                 document.getElementById('unitIncludedCount').textContent = included;
@@ -2157,36 +2141,57 @@
     function renderPagination(type, containerId) {
         const s = sectionState[type];
         const total = s.data.length;
-        const totalPages = Math.ceil(total / ROWS_PER_PAGE);
         const container = document.getElementById(containerId);
-        if (totalPages <= 1) {
+
+        // sembunyikan hanya jika data <= opsi terkecil (5)
+        if (total <= 5) {
             container.innerHTML = '';
-            container.classList.add('hidden');   // ← tambah
+            container.classList.add('hidden');
             return;
         }
-        container.classList.remove('hidden');    // ← tambah
-        const cur = s.page;
+        container.classList.remove('hidden');
+
+        const totalPages = Math.ceil(total / ROWS_PER_PAGE);
+        const cur   = s.page;
         const start = cur * ROWS_PER_PAGE + 1;
         const end   = Math.min((cur + 1) * ROWS_PER_PAGE, total);
+        const btn   = 'padding:3px 10px; font-size:12px; border:1px solid #e5e7eb; border-radius:4px; background:#fff; cursor:pointer;';
+        const dis   = 'opacity:0.4;cursor:not-allowed;';
+
         container.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:space-between;
-                        padding: 8px 12px; font-size:12px; color:#6b7280;
-                        border-top:1px solid #e5e7eb;">
-                <span>${start}–${end} dari ${total}</span>
+            <div onclick="event.stopPropagation()"
+                style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+                        padding:8px 12px; font-size:12px; color:#6b7280; border-top:1px solid #e5e7eb;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span>Tampilkan</span>
+                    <select onchange="setRowsPerPage(this.value)"
+                            style="border:1px solid #e5e7eb; border-radius:4px; padding:2px 6px; font-size:12px; background:#fff;">
+                        ${[5, 10, 20].map(n => `<option value="${n}" ${n === ROWS_PER_PAGE ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                    <span>baris · ${start}–${end} dari ${total}</span>
+                </div>
                 <div style="display:flex; gap:4px; align-items:center;">
-                    <button onclick="gotoPage('${type}', ${cur - 1})"
-                        ${cur === 0 ? 'disabled' : ''}
-                        style="padding:3px 10px; font-size:12px; border:1px solid #e5e7eb; border-radius:4px; background:#fff; cursor:pointer; ${cur === 0 ? 'opacity:0.4;cursor:not-allowed;' : ''}">
-                        ‹
-                    </button>
-                    <span style="padding:3px 8px; font-size:12px;">${cur + 1} / ${totalPages}</span>
-                    <button onclick="gotoPage('${type}', ${cur + 1})"
-                        ${cur >= totalPages - 1 ? 'disabled' : ''}
-                        style="padding:3px 10px; font-size:12px; border:1px solid #e5e7eb; border-radius:4px; background:#fff; cursor:pointer; ${cur >= totalPages - 1 ? 'opacity:0.4;cursor:not-allowed;' : ''}">
-                        ›
-                    </button>
+                    <button onclick="gotoPage('${type}', ${cur - 1})" ${cur === 0 ? 'disabled' : ''}
+                        style="${btn} ${cur === 0 ? dis : ''}">‹</button>
+                    <span style="padding:3px 8px;">${cur + 1} / ${totalPages}</span>
+                    <button onclick="gotoPage('${type}', ${cur + 1})" ${cur >= totalPages - 1 ? 'disabled' : ''}
+                        style="${btn} ${cur >= totalPages - 1 ? dis : ''}">›</button>
                 </div>
             </div>`;
+    }
+
+    function setRowsPerPage(n) {
+        // simpan dulu state checkbox halaman yang sedang tampil
+        saveOutlierState();
+        saveUnitConflictState();
+
+        ROWS_PER_PAGE = parseInt(n) || 5;
+        const bodies = { err:'errBody', dup:'dupBody', meta:'metaBody', out:'outBody', satuan:'satuanBody', unit:'unitBody' };
+        Object.entries(bodies).forEach(([type, id]) => {
+            sectionState[type].page = 0;
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) renderRows(type);
+        });
     }
 
     function renderRows(type) {
