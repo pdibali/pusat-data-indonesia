@@ -98,6 +98,13 @@ use App\Http\Controllers\SettingController;
 
     Route::get('/metadata/{id}/detail-api', [MetadataController::class, 'detailApi'])
                 ->name('metadata.detail_api');
+
+    Route::prefix('wilayah')->name('wilayah.')->group(function () {
+        Route::get('/provinsi',   [WilayahLookupController::class, 'provinsi'])->name('provinsi');
+        Route::get('/kabupaten',  [WilayahLookupController::class, 'kabupaten'])->name('kabupaten');
+        Route::get('/kecamatan',  [WilayahLookupController::class, 'kecamatan'])->name('kecamatan');
+        Route::get('/desa',       [WilayahLookupController::class, 'desa'])->name('desa');
+    });
                 
     // ── Template Tampilan ─────────────────────────────────────────────────
     Route::prefix('template-tampilan')->name('template.')->group(function () {
@@ -223,13 +230,6 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
             Route::get('/{dataReport}', [AdminDataReportController::class, 'show'])->name('show');
             Route::post('/{dataReport}/review', [AdminDataReportController::class, 'review'])->name('review');
         });
-    });
-
-    Route::prefix('wilayah')->name('wilayah.')->group(function () {
-        Route::get('/provinsi',   [WilayahLookupController::class, 'provinsi'])->name('provinsi');
-        Route::get('/kabupaten',  [WilayahLookupController::class, 'kabupaten'])->name('kabupaten');
-        Route::get('/kecamatan',  [WilayahLookupController::class, 'kecamatan'])->name('kecamatan');
-        Route::get('/desa',       [WilayahLookupController::class, 'desa'])->name('desa');
     });
 
     // ── Usulan Data Baru ──────────────────────────────────────

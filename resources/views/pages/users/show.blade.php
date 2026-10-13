@@ -33,6 +33,7 @@
             @foreach ([
                 ['label' => 'Username',  'value' => $user->username],
                 ['label' => 'Email',     'value' => $user->email],
+                ['label' => 'Alamat', 'value' => $user->address],
                 ['label' => 'Group',     'value' => $user->group->title ?? '-'],
                 ['label' => 'Status',    'value' => $user->block ? 'Diblokir' : 'Aktif'],
                 ['label' => 'Terdaftar', 'value' => $user->registerdate?->format('d M Y H:i')],

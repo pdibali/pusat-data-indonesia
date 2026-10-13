@@ -154,8 +154,11 @@ class DataExportController extends Controller
 
     /**
      * Bangun Spreadsheet PhpSpreadsheet mengikuti format file contoh:
-     *   Sheet Metadata : Informasi metadata
-     *   Sheet Data     : Tabel data
+     *   Row 1  : kosong
+     *   Row 2  : Judul / Title (merge A:lastCol) — background #FFC000
+     *   Row 3  : Rentang Tahun / Year Range (merge) — background #FFC000
+     *   Row 4  : Header kolom (Kecamatan/District + tahun) — background #FFC000
+     *   Row 5+ : Data kecamatan
      *   Last   : Baris total kabupaten — background #FFC000
      *   +1     : Kosong
      *   +2     : Sumber/Source
@@ -187,6 +190,7 @@ class DataExportController extends Controller
         ]);
         $metadataSheet->getColumnDimension('A')->setWidth(30);
         $metadataSheet->getColumnDimension('B')->setWidth(100);
+
         foreach ($p['metadata_fields'] as $index => $field) {
             $row = $index + 2;
             $metadataSheet->setCellValue("A{$row}", $field['label']);
@@ -205,7 +209,6 @@ class DataExportController extends Controller
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
                 'font' => ['bold' => true],
             ]);
-            $metadataSheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
         $ws = $spreadsheet->createSheet()->setTitle('Data');
@@ -302,6 +305,8 @@ class DataExportController extends Controller
                 'outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => $C_BORDER]],
             ],
         ]);
+
+        $spreadsheet->setActiveSheetIndex(1);
 
         return $spreadsheet;
     }

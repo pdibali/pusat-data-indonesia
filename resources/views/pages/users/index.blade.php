@@ -112,6 +112,10 @@
                             <span class="text-gray-500 truncate">{{ $user->username }}</span>
                         </div>
                         <div class="flex justify-between gap-2">
+                            <span class="text-gray-600">Asal</span>
+                            <span class="text-gray-500 truncate">{{ $user->address ?: '-' }}</span>
+                        </div>
+                        <div class="flex justify-between gap-2">
                             <span class="text-gray-600">Terdaftar</span>
                             <span class="text-gray-500">{{ $user->registerdate ? $user->registerdate->format('d M Y') : '-' }}</span>
                         </div>

@@ -33,8 +33,8 @@
                     </button>
                 @else
                     <div class="w-full py-4 bg-gray-100 text-gray-400 font-semibold text-xs text-center rounded">
-                        <h1 class="text-sm font-black text-gray-400 mb-1">Bayar dengan Kartu / E-Wallet / VA</h1>
-                        Fitur Pembayaran ini akan Segera hadir
+                        <p class="text-sm font-black text-gray-400 mb-1">Bayar dengan Kartu / E-Wallet / VA</p>
+                        Fitur pembayaran ini akan segera hadir
                     </div>
                 @endif
             </form>
@@ -45,6 +45,24 @@
                     Transfer Bank Manual
                 </button>
             </form>
+
+            {{-- ── Penjelasan metode pembayaran ── --}}
+            <div class="mt-6 pt-5 border-t border-gray-100">
+                <h2 class="text-xs font-bold text-gray-500 font-body mb-2">Penjelasan metode pembayaran:</h2>
+                <ul class="list-disc pl-5 space-y-2 text-xs text-gray-400 font-body leading-relaxed">
+                    <li>
+                        <span class="font-semibold text-gray-500">Kartu / E-Wallet / VA:</span>
+                        Pembayaran otomatis lewat kartu debit/kredit, e-wallet, atau Virtual Account (VA) bank.
+                        Status pembayaran terverifikasi otomatis oleh sistem, jadi layanan bisa langsung diproses
+                        tanpa perlu mengirim bukti transfer atau menunggu pengecekan admin.
+                    </li>
+                    <li>
+                        <span class="font-semibold text-gray-500">Transfer Bank Manual:</span>
+                        Transfer langsung ke rekening yang akan ditampilkan di langkah berikutnya, lalu unggah
+                        bukti pembayaran. Pembayaran dicek manual oleh admin, sehingga dibutuhkan waktu untuk proses verifikasi.
+                    </li>
+                </ul>
+            </div>
         </div>
     </main>
 </body>

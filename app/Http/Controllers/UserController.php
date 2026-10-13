@@ -45,6 +45,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:200',
             'username' => 'required|string|max:50|unique:user,username',
             'email'    => 'required|email|max:50|unique:user,email',
+            'address'  => 'required|string|max:1000',
             'password' => 'required|string|min:8|confirmed',
             'group_id' => 'required|exists:group,group_id',
         ]);
@@ -53,6 +54,7 @@ class UserController extends Controller
             'name'          => $request->name,
             'username'      => $request->username,
             'email'         => $request->email,
+            'address'       => $request->address,
             'password'      => Hash::make($request->password),
             'group_id'      => $request->group_id,
             'block'         => 0,
@@ -83,6 +85,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:200',
             'username' => 'required|string|max:50|unique:user,username,' . $user->user_id . ',user_id',
             'email'    => 'required|email|max:50|unique:user,email,' . $user->user_id . ',user_id',
+            'address'  => 'required|string|max:1000',
             'password' => 'nullable|string|min:8|confirmed',
             'group_id' => 'required|exists:group,group_id',
         ]);
@@ -91,6 +94,7 @@ class UserController extends Controller
             'name'     => $request->name,
             'username' => $request->username,
             'email'    => $request->email,
+            'address'  => $request->address,
             'group_id' => $request->group_id,
         ];
 

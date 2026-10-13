@@ -39,6 +39,8 @@
         @error('email') <p class="text-xs text-red-400">{{ $message }}</p> @enderror
     </div>
 
+    @include('components.user-address-field')
+
     {{-- Group --}}
     <div style="display:flex; flex-direction:column; gap:6px;">
         <label class="text-xs font-medium text-gray-400">

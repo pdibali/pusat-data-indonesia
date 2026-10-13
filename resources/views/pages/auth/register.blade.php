@@ -103,6 +103,8 @@
                     </div>
                 @endif
 
+                @include('components.user-address-field', ['registration' => true])
+
                 {{-- Password --}}
                 <div>
                     <label for="password" class="block text-xs font-semibold text-slate-800 mb-1.5">
@@ -200,7 +202,7 @@
 
             <div class="px-6 py-5 max-h-96 overflow-y-auto text-xs text-gray-700 space-y-4">
                 <p class="font-semibold text-gray-900">1. Pengumpulan Data</p>
-                <p>Kami mengumpulkan data pribadi seperti nama, username, dan email yang Anda berikan saat mendaftar untuk keperluan pengelolaan akun.</p>
+                <p>Kami mengumpulkan nama, username, email, dan alamat yang Anda berikan saat mendaftar untuk pengelolaan akun dan memahami sebaran pengguna layanan, termasuk pengguna dari luar Indonesia.</p>
 
                 <p class="font-semibold text-gray-900">2. Penggunaan Data</p>
                 <p>Data yang dikumpulkan digunakan untuk autentikasi, komunikasi terkait layanan, serta peningkatan kualitas platform Pusat Data Indonesia Bali.</p>
@@ -294,29 +296,62 @@
 
         const form = document.querySelector('form[action="/register"]');
         const tokenInput = document.getElementById('g-recaptcha-response');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const siteKey = '{{ $recaptchaSiteKey }}';
+        let isSubmitting = false;
 
-        if (form && tokenInput && '{{ $recaptchaSiteKey }}') {
-            form.addEventListener('submit', function (event) {
-                if (tokenInput.value) {
-                    return;
-                }
-
-                event.preventDefault();
-
-                if (!window.grecaptcha) {
-                    form.submit();
-                    return;
-                }
-
-                window.grecaptcha.ready(function () {
-                    window.grecaptcha.execute('{{ $recaptchaSiteKey }}', { action: 'register' })
-                        .then(function (token) {
-                            tokenInput.value = token;
-                            form.submit();
-                        });
-                });
-            });
+        function lockSubmit() {
+            isSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.dataset.label = submitBtn.textContent;
+            submitBtn.textContent = 'Memproses...';
+            submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
         }
+
+        function unlockSubmit() {
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = submitBtn.dataset.label || 'Daftar';
+            submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+
+        form.addEventListener('submit', function (event) {
+            // Klik kedua dan seterusnya langsung dibuang
+            if (isSubmitting) {
+                event.preventDefault();
+                return;
+            }
+
+            // Biarkan validasi HTML5 jalan dulu (form memakai novalidate, jadi cek manual)
+            lockSubmit();
+
+            if (!siteKey || tokenInput.value) {
+                return; // submit normal, tombol sudah terkunci
+            }
+
+            event.preventDefault();
+
+            if (!window.grecaptcha) {
+                form.submit();
+                return;
+            }
+
+            window.grecaptcha.ready(function () {
+                window.grecaptcha.execute(siteKey, { action: 'register' })
+                    .then(function (token) {
+                        tokenInput.value = token;
+                        form.submit(); // tidak memicu event submit lagi
+                    })
+                    .catch(function () {
+                        unlockSubmit(); // reCAPTCHA gagal, izinkan coba lagi
+                    });
+            });
+        });
+
+        // Kalau user menekan Back (bfcache), tombol jangan tetap terkunci
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) unlockSubmit();
+        });
     </script>
 </body>
 </html>

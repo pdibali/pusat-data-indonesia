@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Services\RecaptchaService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class RegisterController extends Controller
 {
@@ -32,7 +34,28 @@ class RegisterController extends Controller
             return redirect('/data');
         }
 
-        // ── Rate Limiting per IP ─────────────────────────────
+        $identity = strtolower(trim((string) $request->input('email'))) ?: $request->ip();
+        $lock = Cache::lock('register:lock:' . sha1($identity), 30);
+
+        if (! $lock->get()) {
+            return back()
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->with('success', 'Pendaftaran sedang diproses, mohon tunggu sebentar.');
+        }
+
+        try {
+            return $this->processRegistration($request, $recaptcha, $mailNotifier);
+        } catch (UniqueConstraintViolationException $e) {
+            return back()
+                ->withErrors(['email' => 'Email atau username sudah terdaftar.'])
+                ->withInput($request->except(['password', 'password_confirmation']));
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function processRegistration(Request $request, RecaptchaService $recaptcha, MailNotifier $mailNotifier)
+    {
         $key = 'register:' . $request->ip();
 
         // maksimal 10 percobaan
@@ -70,6 +93,7 @@ class RegisterController extends Controller
             'name'               => 'required|string|max:200',
             'username'           => 'required|string|max:50|unique:user,username',
             'email'              => 'required|email|max:50|unique:user,email',
+            'address'            => 'required|string|max:1000',
             'password'           => 'required|string|min:8|confirmed',
             'privacy_policy'     => 'accepted',
             'invitation_token'   => 'nullable|string',
@@ -80,6 +104,7 @@ class RegisterController extends Controller
             'username.unique'         => 'Username sudah digunakan.',
             'email.required'          => 'Email wajib diisi.',
             'email.unique'            => 'Email sudah terdaftar.',
+            'address.required'       => 'Alamat wajib diisi.',
             'password.required'       => 'Password wajib diisi.',
             'password.min'            => 'Password minimal 8 karakter.',
             'password.confirmed'      => 'Konfirmasi password tidak cocok.',
@@ -92,6 +117,7 @@ class RegisterController extends Controller
             'name'          => $request->name,
             'username'      => $request->username,
             'email'         => $request->email,
+            'address'       => $request->address,
             'password'      => Hash::make($request->password),
             'group_id'      => 3,
             'block'         => 0,

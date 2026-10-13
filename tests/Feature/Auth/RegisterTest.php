@@ -30,6 +30,7 @@ class RegisterTest extends TestCase
             'name'                  => 'Test User',
             'username'              => 'testuser',
             'email'                 => 'test@example.com',
+            'address'               => 'Denpasar, Bali, Indonesia',
             'password'              => 'password',
             'password_confirmation' => 'password',
             'privacy_policy'        => 'on',
@@ -45,6 +46,7 @@ class RegisterTest extends TestCase
 
         $user = User::where('email', 'test@example.com')->first();
         $this->assertNotNull($user);
+        $this->assertSame('Denpasar, Bali, Indonesia', $user->address);
         $this->assertNotSame('activated', $user->activation);
 
         Mail::assertSent(VerifikasiEmail::class, function ($mail) use ($user) {
@@ -63,6 +65,20 @@ class RegisterTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('privacy_policy');
+    }
+
+    public function test_registration_requires_address()
+    {
+        $response = $this->post('/register', [
+            'name'                  => 'Test User',
+            'username'              => 'testuser',
+            'email'                 => 'test@example.com',
+            'password'              => 'password',
+            'password_confirmation' => 'password',
+            'privacy_policy'        => 'on',
+        ]);
+
+        $response->assertSessionHasErrors('address');
     }
 
     public function test_email_verification_token_can_be_used()
