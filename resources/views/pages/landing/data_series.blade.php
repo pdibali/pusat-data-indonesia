@@ -341,7 +341,7 @@
 
                                     $minV = 0;
                                     $maxV = $vals->max() ?: 1;
-                                    $y = 84 - (($v - $minV) / max($maxV - $minV, 1)) * 72;
+                                    $n    = $vals->count();
 
                                     $pts = $vals->map(function ($v, $idx) use ($n, $minV, $maxV) {
                                         $x = ($idx / max($n - 1, 1)) * 300;

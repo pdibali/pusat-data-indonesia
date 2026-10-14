@@ -15,7 +15,9 @@ class SubscriptionAccessService
         }
 
         $maxConcurrentSessions = $limits->getMaxConcurrentSessions($user);
-        $activeSessions = \App\Models\UserSession::where('user_id', $user->user_id)->count();
+        $activeSessions = \App\Models\UserSession::where('user_id', $user->user_id)
+            ->where('is_active', true)
+            ->count();
 
         return $activeSessions <= $maxConcurrentSessions;
     }

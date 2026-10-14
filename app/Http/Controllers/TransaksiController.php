@@ -15,21 +15,21 @@ class TransaksiController extends Controller
     // ── Checkout: Buat transaksi & ambil Snap Token ────────────
     public function checkout(Request $request)
     {
-        if (! Auth::check()) {
+        if (!Auth::check()) {
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk berlangganan.');
         }
 
         $request->validate(['layanan_id' => 'required|exists:layanan,layanan_id']);
 
-        $user    = Auth::user();
+        $user = Auth::user();
         $layanan = Layanan::where('layanan_id', $request->layanan_id)->where('status', 'publish')->firstOrFail();
 
         $existing = Transaksi::where('user_id', $user->user_id)
-                            ->where('layanan_id', $layanan->layanan_id)
-                            ->where('status', 'success')
-                            ->where(function ($q) {
-                                $q->whereNull('aktif_sampai')->orWhere('aktif_sampai', '>=', now());
-                            })->first();
+            ->where('layanan_id', $layanan->layanan_id)
+            ->where('status', 'success')
+            ->where(function ($q) {
+                $q->whereNull('aktif_sampai')->orWhere('aktif_sampai', '>=', now());
+            })->first();
 
         if ($existing) {
             return redirect()->route('transaksi.riwayat')->with('error', 'Kamu sudah memiliki langganan aktif untuk layanan ini.');
@@ -40,14 +40,14 @@ class TransaksiController extends Controller
             ->update(['status' => 'cancelled']);
 
         $transaksi = Transaksi::create([
-            'user_id'      => $user->user_id,
-            'layanan_id'   => $layanan->layanan_id,
+            'user_id' => $user->user_id,
+            'layanan_id' => $layanan->layanan_id,
             'nama_layanan' => $layanan->nama_layanan,
-            'harga'        => $layanan->harga,
-            'durasi'       => $layanan->durasi,
-            'durasi_type'  => $layanan->durasi_type,
-            'order_id'     => Transaksi::generateOrderId($user->user_id),
-            'status'       => 'pending',
+            'harga' => $layanan->harga,
+            'durasi' => $layanan->durasi,
+            'durasi_type' => $layanan->durasi_type,
+            'order_id' => Transaksi::generateOrderId($user->user_id),
+            'status' => 'pending',
         ]);
 
         return redirect()->route('transaksi.pilih_metode', $transaksi);
@@ -55,8 +55,10 @@ class TransaksiController extends Controller
 
     public function pilihMetode(Transaksi $transaksi)
     {
-        if ($transaksi->user_id !== Auth::id()) abort(403);
-        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
+        if ($transaksi->status !== 'pending')
+            return redirect()->route('transaksi.riwayat');
 
         $transaksi->load('layanan');
         return view('pages.transaksi.pilih-metode', compact('transaksi'));
@@ -67,26 +69,41 @@ class TransaksiController extends Controller
         if (!\App\Support\Setting::get('midtrans_enabled', true)) {
             return back()->with('error', 'Fitur pembayaran Midtrans belum tersedia.');
         }
-        
-        if ($transaksi->user_id !== Auth::id()) abort(403);
-        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
+        if ($transaksi->status !== 'pending')
+            return redirect()->route('transaksi.riwayat');
+
+        if ($transaksi->isExpired()) {
+            $transaksi->update(['status' => 'expired']);
+
+            return redirect()->route('transaksi.riwayat')
+                ->with('error', 'Transaksi ini sudah kedaluwarsa. Silakan buat pesanan baru.');
+        }
 
         $layanan = $transaksi->layanan;
-        $snapToken = $this->getSnapToken($transaksi, Auth::user(), $layanan);
+        $snapToken = $transaksi->snap_token
+            ?: $this->getSnapToken($transaksi, Auth::user(), $layanan);
 
-        if (! $snapToken) {
+        if (!$snapToken) {
             return back()->with('error', 'Gagal menghubungi payment gateway. Coba lagi.');
         }
 
-        $transaksi->update(['snap_token' => $snapToken, 'metode_pembayaran' => 'midtrans']);
+        $transaksi->update([
+            'snap_token' => $snapToken,
+            'metode_pembayaran' => 'midtrans',
+        ]);
 
         return view('pages.transaksi.checkout', compact('transaksi', 'layanan', 'snapToken'));
     }
 
     public function pilihManual(Transaksi $transaksi)
     {
-        if ($transaksi->user_id !== Auth::id()) abort(403);
-        if ($transaksi->status !== 'pending') return redirect()->route('transaksi.riwayat');
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
+        if ($transaksi->status !== 'pending')
+            return redirect()->route('transaksi.riwayat');
 
         $transaksi->update(['metode_pembayaran' => 'manual']);
 
@@ -96,8 +113,10 @@ class TransaksiController extends Controller
     // ── Form upload bukti transfer manual ──────────────────────
     public function manualForm(Transaksi $transaksi)
     {
-        if ($transaksi->user_id !== Auth::id()) abort(403);
-        if (! $transaksi->isManual()) abort(404);
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
+        if (!$transaksi->isManual())
+            abort(404);
         if ($transaksi->status !== 'pending') {
             return redirect()->route('transaksi.riwayat');
         }
@@ -109,32 +128,33 @@ class TransaksiController extends Controller
     // ── Simpan bukti transfer yang diupload user ────────────────
     public function uploadBukti(Request $request, Transaksi $transaksi)
     {
-        if ($transaksi->user_id !== Auth::id()) abort(403);
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
 
-        if (! $transaksi->isManual() || $transaksi->status !== 'pending') {
+        if (!$transaksi->isManual() || $transaksi->status !== 'pending') {
             return back()->with('error', 'Transaksi ini tidak valid untuk upload bukti transfer.');
         }
 
         $request->validate([
             'bukti_transfer' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'nama_pengirim'  => 'required|string|max:255',
-            'bank_pengirim'  => 'required|string|max:100',
+            'nama_pengirim' => 'required|string|max:255',
+            'bank_pengirim' => 'required|string|max:100',
         ]);
 
         $path = $request->file('bukti_transfer')->store('bukti-transfer', 'railway');
 
         $transaksi->update([
             'bukti_transfer' => $path,
-            'nama_pengirim'  => $request->nama_pengirim,
-            'bank_pengirim'  => $request->bank_pengirim,
-            'status'         => 'menunggu_verifikasi',
+            'nama_pengirim' => $request->nama_pengirim,
+            'bank_pengirim' => $request->bank_pengirim,
+            'status' => 'menunggu_verifikasi',
         ]);
 
         return redirect()->route('transaksi.riwayat')
             ->with('success', 'Bukti transfer berhasil dikirim. Menunggu verifikasi admin (maks 1x24 jam).');
     }
 
-    // ── Bayar Ulang: Ambil Snap Token baru untuk transaksi pending ────
+    // ── Bayar Ulang: Gunakan kembali Snap Token transaksi pending ──
     public function bayarUlang(Transaksi $transaksi)
     {
         if ($transaksi->user_id !== Auth::id()) {
@@ -158,21 +178,21 @@ class TransaksiController extends Controller
             ], 422);
         }
 
-        $layanan = Layanan::findOrFail($transaksi->layanan_id);
-        $user    = Auth::user();
+        $snapToken = $transaksi->snap_token;
+        if (!$snapToken) {
+            $layanan = Layanan::findOrFail($transaksi->layanan_id);
+            $snapToken = $this->getSnapToken($transaksi, Auth::user(), $layanan);
+        }
 
-        // Snap token lama kemungkinan sudah kedaluwarsa di sisi Midtrans, minta token baru
-        // dengan order_id yang sama — tapi window pembayarannya TETAP dihitung dari
-        // created_at transaksi asli (lihat getSnapToken), bukan dari waktu retry ini.
-        $snapToken = $this->getSnapToken($transaksi, $user, $layanan);
-
-        if (! $snapToken) {
+        if (!$snapToken) {
             return response()->json([
                 'message' => 'Gagal menghubungi payment gateway. Coba lagi.',
             ], 500);
         }
 
-        $transaksi->update(['snap_token' => $snapToken]);
+        if (!$transaksi->snap_token) {
+            $transaksi->update(['snap_token' => $snapToken]);
+        }
 
         return response()->json(['snap_token' => $snapToken]);
     }
@@ -188,10 +208,10 @@ class TransaksiController extends Controller
             'payment_type' => $payload['payment_type'] ?? '',
         ]);
 
-        $orderId      = trim((string) ($payload['order_id'] ?? ''));
-        $statusCode   = trim((string) ($payload['status_code'] ?? ''));
-        $grossAmount  = trim((string) ($payload['gross_amount'] ?? ''));
-        $serverKey    = trim((string) config('midtrans.server_key'));
+        $orderId = trim((string) ($payload['order_id'] ?? ''));
+        $statusCode = trim((string) ($payload['status_code'] ?? ''));
+        $grossAmount = trim((string) ($payload['gross_amount'] ?? ''));
+        $serverKey = trim((string) config('midtrans.server_key'));
         $signatureKey = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
 
         $payloadSignature = trim((string) ($payload['signature_key'] ?? ''));
@@ -209,15 +229,15 @@ class TransaksiController extends Controller
 
         $transaksi = Transaksi::where('order_id', $orderId)->first();
 
-        if (! $transaksi) {
+        if (!$transaksi) {
             return response()->json(['message' => 'Order not found'], 404);
         }
 
         $transaksi->update(['midtrans_payload' => $payload]);
 
         $transactionStatus = $payload['transaction_status'] ?? '';
-        $fraudStatus       = $payload['fraud_status'] ?? '';
-        $paymentType       = $payload['payment_type'] ?? null;
+        $fraudStatus = $payload['fraud_status'] ?? '';
+        $paymentType = $payload['payment_type'] ?? null;
 
         if ($transactionStatus === 'capture') {
             $newStatus = ($fraudStatus === 'accept') ? 'success' : 'failed';
@@ -240,14 +260,14 @@ class TransaksiController extends Controller
         }
 
         $updateData = [
-            'status'                   => $newStatus,
-            'payment_type'             => $paymentType,
-            'midtrans_transaction_id'  => $payload['transaction_id'] ?? null,
+            'status' => $newStatus,
+            'payment_type' => $paymentType,
+            'midtrans_transaction_id' => $payload['transaction_id'] ?? null,
         ];
 
-        if ($newStatus === 'success' && ! $transaksi->isSuccess()) {
+        if ($newStatus === 'success' && !$transaksi->isSuccess()) {
             $mulai = Carbon::now();
-            $updateData['aktif_mulai']  = $mulai;
+            $updateData['aktif_mulai'] = $mulai;
             $updateData['aktif_sampai'] = Transaksi::hitungAktifSampai(
                 $transaksi->durasi_type,
                 $transaksi->durasi,
@@ -282,14 +302,14 @@ class TransaksiController extends Controller
         }
 
         return response()->json([
-            'status'       => $transaksi->status,
-            'status_label' => match($transaksi->status) {
-                'success'   => 'Pembayaran Berhasil',
-                'pending'   => 'Menunggu Pembayaran',
-                'failed'    => 'Pembayaran Gagal',
-                'expired'   => 'Kedaluwarsa',
+            'status' => $transaksi->status,
+            'status_label' => match ($transaksi->status) {
+                'success' => 'Pembayaran Berhasil',
+                'pending' => 'Menunggu Pembayaran',
+                'failed' => 'Pembayaran Gagal',
+                'expired' => 'Kedaluwarsa',
                 'cancelled' => 'Dibatalkan',
-                default     => $transaksi->status,
+                default => $transaksi->status,
             },
         ]);
     }
@@ -306,9 +326,9 @@ class TransaksiController extends Controller
             ->update(['status' => 'expired']);
 
         $query = Transaksi::where('user_id', $user->user_id)
-                  ->with('layanan')
-                  ->whereIn('status', ['pending', 'menunggu_verifikasi', 'success', 'failed', 'expired', 'cancelled'])
-                  ->orderByDesc('created_at');
+            ->with('layanan')
+            ->whereIn('status', ['pending', 'menunggu_verifikasi', 'success', 'failed', 'expired', 'cancelled'])
+            ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -317,15 +337,15 @@ class TransaksiController extends Controller
         $transaksis = $query->paginate(10)->withQueryString();
 
         $stats = [
-            'total'    => Transaksi::where('user_id', $user->user_id)->count(),
-            'aktif'    => Transaksi::where('user_id', $user->user_id)->success()
-                            ->where(function ($q) {
-                                $q->whereNull('aktif_sampai')
-                                  ->orWhere('aktif_sampai', '>=', now());
-                            })->count(),
-            'pending'  => Transaksi::where('user_id', $user->user_id)->pending()->count(),
+            'total' => Transaksi::where('user_id', $user->user_id)->count(),
+            'aktif' => Transaksi::where('user_id', $user->user_id)->success()
+                ->where(function ($q) {
+                    $q->whereNull('aktif_sampai')
+                        ->orWhere('aktif_sampai', '>=', now());
+                })->count(),
+            'pending' => Transaksi::where('user_id', $user->user_id)->pending()->count(),
             'total_bayar' => Transaksi::where('user_id', $user->user_id)
-                                ->success()->sum('harga'),
+                ->success()->sum('harga'),
         ];
 
         return view('pages.transaksi.riwayat', compact('transaksis', 'stats'));
@@ -355,19 +375,19 @@ class TransaksiController extends Controller
 
         $payload = [
             'transaction_details' => [
-                'order_id'     => $transaksi->order_id,
+                'order_id' => $transaksi->order_id,
                 'gross_amount' => (int) $transaksi->harga,
             ],
             'customer_details' => [
                 'first_name' => $user->name,
-                'email'      => $user->email,
+                'email' => $user->email,
             ],
             'item_details' => [
                 [
-                    'id'       => 'LAYANAN-' . $layanan->layanan_id,
-                    'price'    => (int) $layanan->harga,
+                    'id' => 'LAYANAN-' . $layanan->layanan_id,
+                    'price' => (int) $layanan->harga,
                     'quantity' => 1,
-                    'name'     => $layanan->nama_layanan . ' (' . $layanan->durasi_label . ')',
+                    'name' => $layanan->nama_layanan . ' (' . $layanan->durasi_label . ')',
                 ],
             ],
             'callbacks' => [
@@ -379,8 +399,8 @@ class TransaksiController extends Controller
             // dengan yang dipakai Transaksi::EXPIRY_HOURS di seluruh aplikasi.
             'expiry' => [
                 'start_time' => $transaksi->created_at->format('Y-m-d H:i:s O'),
-                'unit'       => 'hours',
-                'duration'   => Transaksi::EXPIRY_HOURS,
+                'unit' => 'hours',
+                'duration' => Transaksi::EXPIRY_HOURS,
             ],
         ];
 
@@ -394,7 +414,7 @@ class TransaksiController extends Controller
             }
 
             Log::error('Midtrans Snap Error', [
-                'status'   => $response->status(),
+                'status' => $response->status(),
                 'response' => $response->json(),
             ]);
 
@@ -431,8 +451,10 @@ class TransaksiController extends Controller
 
     public function sukses(Transaksi $transaksi)
     {
-        if ($transaksi->user_id !== Auth::id()) abort(403);
-        if (! $transaksi->isSuccess()) return redirect()->route('transaksi.riwayat');
+        if ($transaksi->user_id !== Auth::id())
+            abort(403);
+        if (!$transaksi->isSuccess())
+            return redirect()->route('transaksi.riwayat');
 
         $transaksi->load('layanan');
 

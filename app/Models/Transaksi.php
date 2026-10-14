@@ -168,7 +168,7 @@ class Transaksi extends Model
     // ── Generate unique order_id ───────────────────────────────
     public static function generateOrderId(int $userId): string
     {
-        return 'TRX-' . $userId . '-' . time();
+        return 'TRX-' . $userId . '-' . time() . '-' . strtoupper(bin2hex(random_bytes(4)));
     }
 
     // ── Hitung aktif_sampai berdasarkan durasi_type ────────────

@@ -208,10 +208,25 @@
                                     <span class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
                                     Kedaluwarsa
                                 </span>
+                            @elseif($item->status === 'success')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                                    Berhasil
+                                </span>
+                            @elseif($item->status === 'failed')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
+                                    Gagal
+                                </span>
+                            @elseif($item->status === 'cancelled')
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
+                                    Dibatalkan
+                                </span>
                             @else
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                                     <span class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
-                                    Tidak
+                                    {{ $item->status }}
                                 </span>
                             @endif
                         </td>

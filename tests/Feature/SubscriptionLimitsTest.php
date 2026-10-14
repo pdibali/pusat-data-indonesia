@@ -8,6 +8,7 @@ use App\Models\Transaksi;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Services\SessionLimitService;
+use App\Services\SubscriptionAccessService;
 use Database\Seeders\GroupSeeder;
 use App\Services\SubscriptionLimitsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -136,6 +137,62 @@ class SubscriptionLimitsTest extends TestCase
 
         $this->assertNotNull($oldSession);
         $this->assertTrue($oldSession->is_active);
+    }
+
+    public function test_inactive_sessions_do_not_block_access_with_an_active_subscription(): void
+    {
+        $user = User::factory()->create([
+            'group_id' => 3,
+        ]);
+
+        $package = Layanan::create([
+            'nama_layanan' => 'Paket Personal Akses',
+            'harga' => 10000,
+            'durasi' => 1,
+            'durasi_type' => 'harian',
+            'status' => 'publish',
+            'category' => 'personal',
+            'max_concurrent_sessions' => 1,
+            'max_templates' => 10,
+            'audience_type' => 'personal',
+        ]);
+
+        Transaksi::create([
+            'user_id' => $user->user_id,
+            'layanan_id' => $package->layanan_id,
+            'nama_layanan' => $package->nama_layanan,
+            'harga' => $package->harga,
+            'durasi' => $package->durasi,
+            'durasi_type' => $package->durasi_type,
+            'order_id' => 'ORDER-ACCESS',
+            'status' => 'success',
+            'aktif_mulai' => now(),
+            'aktif_sampai' => now()->addDay(),
+        ]);
+
+        UserSession::create([
+            'user_id' => $user->user_id,
+            'session_id' => 'active-session',
+            'session_token' => 'active-session-token',
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'test-agent',
+            'login_at' => now(),
+            'is_active' => true,
+        ]);
+
+        foreach (['inactive-session-a', 'inactive-session-b'] as $sessionId) {
+            UserSession::create([
+                'user_id' => $user->user_id,
+                'session_id' => $sessionId,
+                'session_token' => $sessionId.'-token',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'test-agent',
+                'login_at' => now()->subDay(),
+                'is_active' => false,
+            ]);
+        }
+
+        $this->assertTrue(app(SubscriptionAccessService::class)->hasActiveAccess($user));
     }
 
     public function test_it_blocks_template_creation_when_limit_reached(): void
