@@ -224,7 +224,8 @@
                         Periode ({{ $periodeLabel ?? ucfirst($frekuensi) }})
                     </th>
                     <th rowspan="2" style="min-width:70px;">Satuan</th>
-                    <th rowspan="2" style="min-width:140px;">Sumber</th>
+                    <th rowspan="2" style="min-width:140px;">Sumber Produsen</th>
+                    <th rowspan="2" style="min-width:160px;">Sumber Rujukan</th>
                 </tr>
                 {{-- Baris 2: label setiap kolom periode --}}
                 <tr>
@@ -271,9 +272,10 @@
                                 <td class="col-satuan" rowspan="{{ $rowCount }}">{{ $meta['satuan'] }}</td>
                             @endif
 
-                            {{-- Kolom Sumber — rowspan --}}
+                            {{-- Kolom sumber — rowspan --}}
                             @if($ri === 0)
                                 <td class="col-sumber" rowspan="{{ $rowCount }}">{{ $meta['sumber'] }}</td>
+                                <td class="col-sumber" rowspan="{{ $rowCount }}">{{ $meta['sumber_rujukan'] }}</td>
                             @endif
                         </tr>
                     @endforeach

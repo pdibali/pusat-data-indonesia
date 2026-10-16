@@ -28,7 +28,8 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
  *
  * Format Excel mengikuti referensi Book1.xlsx:
  *   Row 1: Header 2 baris — Nama Metadata (merge row 1-2) | Wilayah (merge) |
- *           Periode ... [colspan kolom] | Satuan (merge) | Sumber (merge)
+ *           Periode ... [colspan kolom] | Satuan (merge) | Sumber Produsen (merge) |
+ *           Sumber Rujukan (merge)
  *   Row 2: Label per kolom periode
  *   Row 3+: Data per metadata × wilayah
  *           → Kolom A di-merge untuk semua baris wilayah dari metadata yang sama
@@ -205,6 +206,7 @@ class TemplateExportController extends Controller
 
         $dataIndex             = [];
         $rujukanIndex          = [];
+        $sumberRujukanIndex    = [];
         $referenceMetadataIndex = [];
         foreach ($allData as $d) {
             if (!isset($dataIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
@@ -217,6 +219,9 @@ class TemplateExportController extends Controller
             }
 
             if ($d->rujukan) {
+                if (!isset($sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                    $sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->rujukan->nama_rujukan;
+                }
                 $referenceMetadataIndex[$d->metadata_id][$d->rujukan_id] = $d->rujukan->nama_rujukan;
             }
         }
@@ -261,12 +266,23 @@ class TemplateExportController extends Controller
                         ->first() ?? '-';
                 }
 
+                $sumberRujukan = '-';
+                if ($locId !== null && isset($sumberRujukanIndex[$mId][$locId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($sumberRujukanIndex[$mId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId])
+                        ->map(fn ($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
+                }
+
                 $metaRows[] = [
                     'lokasi'  => $locNama,
                     'level'   => $level,
                     'loc_id'  => $locId,
                     'values'  => $values,
                     'rujukan' => $rujukan,
+                    'sumber_rujukan' => $sumberRujukan,
                 ];
             }
 
@@ -275,6 +291,7 @@ class TemplateExportController extends Controller
                 'nama'        => $m->nama,
                 'satuan'      => $m->satuan_data ?? '-',
                 'sumber'      => collect($metaRows)->pluck('rujukan')->filter(fn ($r) => $r !== '-')->first() ?? '-',
+                'sumber_rujukan' => collect($metaRows)->pluck('sumber_rujukan')->filter(fn ($r) => $r !== '-')->first() ?? '-',
                 'references'  => implode("\n", $referenceMetadataIndex[$mId] ?? []) ?: '-',
                 'rows'        => $metaRows,
                 'model'       => $m,
@@ -291,7 +308,7 @@ class TemplateExportController extends Controller
                     ['label' => 'Satuan', 'value' => $m->satuan_data],
                     ['label' => 'Klasifikasi', 'value' => $m->klasifikasi?->nama_klasifikasi],
                     ['label' => 'Asumsi', 'value' => $m->asumsi],
-                    ['label' => 'Rujukan', 'value' => implode("\n", $referenceMetadataIndex[$mId] ?? [])],
+                    ['label' => 'Sumber Rujukan', 'value' => implode("\n", $referenceMetadataIndex[$mId] ?? [])],
                 ],
             ];
         }
@@ -322,18 +339,18 @@ class TemplateExportController extends Controller
         $grouped = $p['grouped'];   // keyed by metadata_id
 
         $nPeriodCols = count($columns);
-        // Kolom: A=Nama Metadata, B=Wilayah, C..X=Periode, X+1=Satuan, X+2=Sumber
-        $colWilayah  = 'B';
+        // Kolom: A=Nama Metadata, B=Wilayah, C..=Periode, lalu Satuan dan dua sumber.
         $colPeriodStart = 3;                               // 1-based: C
         $colPeriodEnd   = 2 + $nPeriodCols;               // 1-based
         $colSatuan      = $colPeriodEnd + 1;
-        $colSumber      = $colPeriodEnd + 2;
-        $totalCols      = $colSumber;
+        $colSumberProdusen = $colPeriodEnd + 2;
+        $colSumberRujukan  = $colPeriodEnd + 3;
 
         $colLetterStart  = $this->colLetter($colPeriodStart);
         $colLetterEnd    = $this->colLetter($colPeriodEnd);
         $colLetterSatuan = $this->colLetter($colSatuan);
-        $colLetterSumber = $this->colLetter($colSumber);
+        $colLetterSumberProdusen = $this->colLetter($colSumberProdusen);
+        $colLetterSumberRujukan = $this->colLetter($colSumberRujukan);
 
         // ── BARIS 1: Header atas ─────────────────────────────────
         // Merge A1:A2 — "Nama Metadata"
@@ -362,11 +379,15 @@ class TemplateExportController extends Controller
         $this->applyHeaderStyle($ws, "{$colLetterSatuan}1:{$colLetterSatuan}2");
         $ws->getColumnDimension($colLetterSatuan)->setWidth(12);
 
-        // Merge Sumber1:Sumber2
-        $ws->mergeCells("{$colLetterSumber}1:{$colLetterSumber}2");
-        $ws->setCellValue("{$colLetterSumber}1", 'Sumber');
-        $this->applyHeaderStyle($ws, "{$colLetterSumber}1:{$colLetterSumber}2");
-        $ws->getColumnDimension($colLetterSumber)->setWidth(28);
+        $ws->mergeCells("{$colLetterSumberProdusen}1:{$colLetterSumberProdusen}2");
+        $ws->setCellValue("{$colLetterSumberProdusen}1", 'Sumber Produsen');
+        $this->applyHeaderStyle($ws, "{$colLetterSumberProdusen}1:{$colLetterSumberProdusen}2");
+        $ws->getColumnDimension($colLetterSumberProdusen)->setWidth(28);
+
+        $ws->mergeCells("{$colLetterSumberRujukan}1:{$colLetterSumberRujukan}2");
+        $ws->setCellValue("{$colLetterSumberRujukan}1", 'Sumber Rujukan');
+        $this->applyHeaderStyle($ws, "{$colLetterSumberRujukan}1:{$colLetterSumberRujukan}2");
+        $ws->getColumnDimension($colLetterSumberRujukan)->setWidth(32);
 
         $ws->getRowDimension(1)->setRowHeight(22);
 
@@ -457,12 +478,21 @@ class TemplateExportController extends Controller
                         'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
                     ]);
 
-                    // Kolom Sumber — merge
+                    // Kolom sumber — merge
                     if ($rowCount > 1) {
-                        $ws->mergeCells("{$colLetterSumber}{$startRow}:{$colLetterSumber}{$endRow}");
+                        $ws->mergeCells("{$colLetterSumberProdusen}{$startRow}:{$colLetterSumberProdusen}{$endRow}");
                     }
-                    $ws->setCellValue("{$colLetterSumber}{$startRow}", $meta['sumber']);
-                    $ws->getStyle("{$colLetterSumber}{$startRow}")->applyFromArray([
+                    $ws->setCellValue("{$colLetterSumberProdusen}{$startRow}", $meta['sumber']);
+                    $ws->getStyle("{$colLetterSumberProdusen}{$startRow}")->applyFromArray([
+                        'font'      => ['size' => 10, 'italic' => true],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+                    ]);
+                    if ($rowCount > 1) {
+                        $ws->mergeCells("{$colLetterSumberRujukan}{$startRow}:{$colLetterSumberRujukan}{$endRow}");
+                    }
+                    $ws->setCellValue("{$colLetterSumberRujukan}{$startRow}", $meta['sumber_rujukan']);
+                    $ws->getStyle("{$colLetterSumberRujukan}{$startRow}")->applyFromArray([
                         'font'      => ['size' => 10, 'italic' => true],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
                         'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
@@ -541,7 +571,7 @@ class TemplateExportController extends Controller
                     'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
                     'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D0D0D0']]],
                 ]);
-                $ws->getRowDimension($r)->setRowHeight($label === 'Rujukan' ? 55 : 36);
+                $ws->getRowDimension($r)->setRowHeight($label === 'Sumber Rujukan' ? 55 : 36);
                 $r++;
             }
 
@@ -589,6 +619,8 @@ class TemplateExportController extends Controller
                     'nama_metadata' => $meta['nama'],
                     'satuan'        => $meta['satuan'],
                     'sumber'        => $meta['sumber'],
+                    'sumber_produsen' => $meta['sumber'],
+                    'sumber_rujukan' => $row['sumber_rujukan'],
                     'wilayah'       => $row['lokasi'],
                     'level_wilayah' => $row['level'],
                     'values'        => array_map(
@@ -613,6 +645,8 @@ class TemplateExportController extends Controller
                 'frekuensi_penerbitan'   => $m?->frekuensi_penerbitan,
                 'wilayah_lokasi_data'    => collect($meta['rows'])->pluck('lokasi')->unique()->values()->all(),
                 'satuan'                 => $m?->satuan_data,
+                'sumber_produsen'        => $meta['sumber'],
+                'sumber_rujukan'         => $meta['references'] ?? null,
                 'klasifikasi'            => $m?->klasifikasi?->nama_klasifikasi,
                 'asumsi'                 => $m?->asumsi,
                 'rujukan'                => $meta['references'] ?? null,

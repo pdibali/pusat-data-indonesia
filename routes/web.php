@@ -181,6 +181,12 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
         ->name('session.pending_login.wait');
 
     Route::prefix('admin')->name('admin.')->middleware('is.reviewer')->group(function () {
+        Route::middleware('is.superadmin')->group(function () {
+            Route::get('activity-logs', [\App\Http\Controllers\AdminUserActivityLogController::class, 'index'])
+                ->name('activity_logs.index');
+            Route::delete('activity-logs', [\App\Http\Controllers\AdminUserActivityLogController::class, 'destroyOlderThan'])
+                ->name('activity_logs.destroy_older_than');
+        });
         Route::resource('users',    UserController::class);
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::post('users/{user}/verify', [UserController::class, 'verify'])->name('users.verify');

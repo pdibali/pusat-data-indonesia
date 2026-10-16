@@ -7,6 +7,8 @@ use App\Http\Middleware\IsLogin;
 use App\Http\Middleware\IsPengelola;
 use App\Http\Middleware\IsCustomer;
 use App\Http\Middleware\IsReviewer;
+use App\Http\Middleware\IsSuperAdmin;
+use App\Http\Middleware\LogAuthenticatedPageVisits;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             EnsureSingleActiveSession::class,
+            LogAuthenticatedPageVisits::class,
         ]);
 
         $middleware->api(prepend: [
@@ -40,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'is.customer' => IsCustomer::class,
             'is.pengelola' => IsPengelola::class,
             'is.reviewer' => IsReviewer::class,
+            'is.superadmin' => IsSuperAdmin::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

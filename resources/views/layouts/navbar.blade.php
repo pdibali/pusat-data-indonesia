@@ -75,6 +75,13 @@
                        class="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-100">
                         Ubah Password
                     </a>
+                    @if((int) $user->group_id === 1)
+                        <a href="{{ route('admin.activity_logs.index') }}"
+                           @click="open = false"
+                           class="block px-4 py-3 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700">
+                            Log Aktivitas
+                        </a>
+                    @endif
                     <div class="border-t border-slate-200"></div>
                     <form action="{{ url('/logout') }}" method="POST"
                           x-data="{ submitting: false }"

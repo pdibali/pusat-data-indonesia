@@ -1088,7 +1088,7 @@ class TemplateController extends Controller
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
     
         // ── Query data — ambil semua sekaligus ────────────────
-        $dataQuery = Data::with(['rujukan:rujukan_id,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
+        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
     
@@ -1109,6 +1109,7 @@ class TemplateController extends Controller
         // Index: [metadata_id][location_id][time_id] = value
         $dataIndex    = [];
         $rujukanIndex = [];
+        $sumberRujukanIndex = [];
     
         
         foreach ($allData as $d) {
@@ -1121,6 +1122,10 @@ class TemplateController extends Controller
             $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
             if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
                 $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
+            }
+            $namaRujukan = $d->rujukan?->nama_rujukan;
+            if ($namaRujukan && !isset($sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaRujukan;
             }
         }
     
@@ -1177,6 +1182,16 @@ class TemplateController extends Controller
                         ->filter()
                         ->first() ?? '-';
                 }
+
+                $sumberRujukan = '-';
+                if ($locId !== null && isset($sumberRujukanIndex[$mId][$locId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($sumberRujukanIndex[$mId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId])
+                        ->map(fn($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
+                }
     
                 $rows[] = [
                     'metadata_id'  => $mId,
@@ -1187,6 +1202,7 @@ class TemplateController extends Controller
                     'location_id'  => $locId,
                     'lokasi_level' => $lokasiLevel,
                     'sumber'       => $rujukan,
+                    'sumber_rujukan' => $sumberRujukan,
                     'values'       => $values,
                 ];
             }
@@ -1357,7 +1373,7 @@ class TemplateController extends Controller
 
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
 
-        $dataQuery = Data::with(['rujukan:rujukan_id,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
+        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
 
@@ -1375,6 +1391,7 @@ class TemplateController extends Controller
 
         $dataIndex    = [];
         $rujukanIndex = [];
+        $sumberRujukanIndex = [];
 
         foreach ($allData as $d) {
             if (!isset($dataIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
@@ -1384,6 +1401,10 @@ class TemplateController extends Controller
             $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
             if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
                 $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
+            }
+            $namaRujukan = $d->rujukan?->nama_rujukan;
+            if ($namaRujukan && !isset($sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaRujukan;
             }
         }
 
@@ -1426,6 +1447,16 @@ class TemplateController extends Controller
                         ->first() ?? '-';
                 }
 
+                $sumberRujukan = '-';
+                if ($locId !== null && isset($sumberRujukanIndex[$mId][$locId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($sumberRujukanIndex[$mId])) {
+                    $sumberRujukan = collect($sumberRujukanIndex[$mId])
+                        ->map(fn($times) => collect($times)->filter()->first())
+                        ->filter()
+                        ->first() ?? '-';
+                }
+
                 $rows[] = [
                     'metadata_id'  => $mId,
                     'nama'         => $m->nama,
@@ -1435,6 +1466,7 @@ class TemplateController extends Controller
                     'location_id'  => $locId,
                     'lokasi_level' => $lokasiLevel,
                     'sumber'       => $rujukan,
+                    'sumber_rujukan' => $sumberRujukan,
                     'values'       => $values,
                 ];
             }

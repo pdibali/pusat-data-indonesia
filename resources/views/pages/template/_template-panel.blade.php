@@ -1570,7 +1570,7 @@ function _renderTable(d) {
         'semesteran':'Semester','kuartal':'Kuartal','bulanan':'Bulan','custom':'Periode Custom',
     }[d.frekuensi] ?? 'Periode';
 
-    // ── Baris header 1: Nama | Periode (colspan) | Satuan | Sumber | Aksi
+    // ── Baris header 1: Nama | Periode (colspan) | Satuan | Sumber Produsen | Sumber Rujukan | Aksi
     // ── Baris header 2: [kosong] | kolom per periode | [rowspan dari baris 1]
     head.innerHTML = `
         <tr class="border-b border-gray-200">
@@ -1592,7 +1592,12 @@ function _renderTable(d) {
             <th class="px-4 py-3 text-left font-semibold text-gray-600 text-xs
                        whitespace-nowrap border-l border-gray-200"
                 rowspan="2" style="min-width:150px">
-                Sumber
+                Sumber Produsen
+            </th>
+            <th class="px-3 py-3 text-left font-semibold text-gray-600 text-xs
+                       whitespace-nowrap border-l border-gray-200"
+                rowspan="2" style="min-width:160px">
+                Sumber Rujukan
             </th>
             <th class="px-4 py-3 text-center font-semibold text-gray-600 text-xs
                        whitespace-nowrap border-l border-gray-200"
@@ -1702,7 +1707,6 @@ function _renderTable(d) {
 
             html += cells;
 
-            // ── Satuan + Sumber: rowspan hanya di baris pertama (sama untuk semua lokasi) ──
             // ── Satuan: tetap rowspan, karena satuan sama untuk semua lokasi ──
             if (isFirstRow) {
                 html += `
@@ -1713,12 +1717,15 @@ function _renderTable(d) {
                     </td>`;
             }
 
-            // ── Sumber: PER BARIS, karena tiap lokasi bisa punya rujukan/produsen beda ──
-            const sumberCombined = (row.sumber ?? '') + (row.produsen ? ((row.sumber ? ' · ' : '') + row.produsen) : '');
+            // ── Sumber mengikuti referensi terbaru untuk setiap lokasi ──
             html += `
                 <td class="px-3 py-2.5 text-xs text-gray-400 align-top border-l border-gray-200"
-                    style="max-width:180px" title="${_esc(sumberCombined)}">
-                    <span class="line-clamp-3">${_esc(sumberCombined || '-')}</span>
+                    style="max-width:180px" title="${_esc(row.sumber ?? '-')}">
+                    <span class="line-clamp-3">${_esc(row.sumber ?? '-')}</span>
+                </td>
+                <td class="px-3 py-2.5 text-xs text-gray-400 align-top border-l border-gray-200"
+                    style="max-width:200px" title="${_esc(row.sumber_rujukan ?? '-')}">
+                    <span class="line-clamp-3">${_esc(row.sumber_rujukan ?? '-')}</span>
                 </td>`;
 
             // ── Aksi/Grafik: muncul di SETIAP baris (per lokasi) ──
@@ -1740,7 +1747,7 @@ function _renderTable(d) {
 
         // Separator antar metadata
         if (mIdx < metaOrder.length - 1) {
-            const totalCols = 1 + cols.length + 3; // sticky + data cols + satuan+sumber+aksi
+            const totalCols = 1 + cols.length + 4; // sticky + data cols + satuan + dua sumber + aksi
             html += `<tr class="metadata-separator"><td colspan="${totalCols}"></td></tr>`;
         }
     });
@@ -1851,7 +1858,11 @@ function _renderMobileCards(d) {
                     ${nilaiRows}
                     ${row.sumber ? `
                     <div class="px-4 py-1.5 text-[10px] text-gray-400 border-t border-gray-50">
-                        <span class="font-medium text-gray-500">Sumber:</span> ${_esc(row.sumber)}
+                        <span class="font-medium text-gray-500">Sumber Produsen:</span> ${_esc(row.sumber)}
+                    </div>` : ''}
+                    ${row.sumber_rujukan ? `
+                    <div class="px-4 py-1.5 text-[10px] text-gray-400 border-t border-gray-50">
+                        <span class="font-medium text-gray-500">Sumber Rujukan:</span> ${_esc(row.sumber_rujukan)}
                     </div>` : ''}
                 </div>`;
         }).join('');
