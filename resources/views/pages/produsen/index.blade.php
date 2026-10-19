@@ -11,10 +11,16 @@
             <h2 class="text-lg font-semibold text-gray-600">Kelola Produsen</h2>
             <p class="text-xs text-gray-500 mt-0.5">Manajemen data produsen / publisher data</p>
         </div>
-        <a href="{{ route('admin.produsen.create') }}"
-           class="btn-primary text-xs">
-            <i class="fas fa-plus"></i> Tambah Produsen
-        </a>
+        <div class="space-x-2">
+            <a href="{{ route('admin.produsen.import') }}"
+               class="btn-primary bg-indigo-600 hover:bg-indigo-700 text-xs">
+                <i class="fas fa-file-upload"></i> Bulk Input Excel
+            </a>
+            <a href="{{ route('admin.produsen.create') }}"
+               class="btn-primary text-xs">
+                <i class="fas fa-plus"></i> Tambah Produsen
+            </a>
+        </div>
     </div>
 
     @include('layouts.alert')
@@ -38,7 +44,7 @@
             <i class="fas fa-search"></i> Cari
         </button>
         <a href="{{ route('admin.produsen.export', request()->query()) }}"
-           class="btn-primary text-xs">
+           class="btn-primary bg-green-600 hover:bg-green-700 text-xs">
             <i class="fas fa-file-excel"></i> Export Excel
         </a>
         @if(request('search'))

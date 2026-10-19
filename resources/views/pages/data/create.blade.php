@@ -563,6 +563,16 @@
                         </p>
                     </div>
 
+                    <div id="produsenImportWarning" class="hidden rounded-lg p-4 text-sm"
+                        style="background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;">
+                        <p class="font-semibold flex items-center gap-2 mb-1">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            Produsen Belum Valid
+                        </p>
+                        <p id="produsenImportWarningDetail" class="text-xs"></p>
+                        <p class="text-xs mt-1">Gunakan ID atau nama produsen yang terdaftar. Pisahkan beberapa produsen dalam satu sel dengan tanda titik koma (;).</p>
+                    </div>
+
                     <div id="errorSection" class="hidden rounded-xl overflow-hidden border border-red-200">
                         <div class="flex items-center gap-2.5 px-4 py-2.5 bg-red-50 cursor-pointer select-none"
                             onclick="toggleSection('err')">
@@ -1611,6 +1621,15 @@
             tahunan:'Tahunan', semester:'Semester', quarter:'Quarter', bulanan:'Bulanan', unknown:'?',
         }[json.period_type] ?? json.period_type;
         const invalidMetaCount = (json.invalid_metadata || []).length;
+        const invalidProdusen = json.invalid_produsen || [];
+        const produsenWarning = document.getElementById('produsenImportWarning');
+        if (invalidProdusen.length > 0) {
+            document.getElementById('produsenImportWarningDetail').textContent =
+                `${invalidProdusen.length} baris memiliki produsen kosong atau tidak cocok dengan data produsen di sistem.`;
+            produsenWarning.classList.remove('hidden');
+        } else {
+            produsenWarning.classList.add('hidden');
+        }
         document.getElementById('statsGrid').innerHTML = `
             <div class="rounded-lg p-3 text-center" style="background:#f0f9ff; border:1px solid #bae6fd;">
                 <p class="text-xl font-bold" style="color:#0369a1;">${json.total_rows}</p>
@@ -1707,7 +1726,7 @@
 
         const btn  = document.getElementById('btnImport');
         const text = document.getElementById('btnImportText');
-        if (json.valid > 0) {
+        if (json.valid > 0 && invalidProdusen.length === 0) {
             btn.disabled = false;
             btn.classList.remove('bg-gray-50', 'text-gray-400');
             btn.classList.add('bg-sky-600', 'hover:bg-sky-700', 'text-white');
@@ -1716,7 +1735,7 @@
             btn.disabled = true;
             btn.classList.remove('bg-sky-600', 'hover:bg-sky-700', 'text-white');
             btn.classList.add('bg-gray-50', 'text-gray-400');
-            text.textContent = 'Tidak Ada Data Valid';
+            text.textContent = invalidProdusen.length > 0 ? 'Perbaiki Produsen' : 'Tidak Ada Data Valid';
         }
     }
 
@@ -2396,6 +2415,7 @@
 
     async function doImport() {
         if (!currentFile || !previewData) return;
+        if ((previewData.invalid_produsen || []).length > 0) return;
 
         const skipDup      = document.getElementById('cbSkipDup')?.checked ?? true;
         const btn          = document.getElementById('btnImport');
@@ -2498,6 +2518,14 @@
                     json.error_rows.forEach(e => {
                         const rowText = e.row ? `Baris ${esc(e.row)}:` : '';
                         extraHtml += `<li>${rowText} ${esc(e.message)}</li>`;
+                    });
+                    extraHtml += '</ul>';
+                }
+                if (json.invalid_produsen_rows && Array.isArray(json.invalid_produsen_rows) && json.invalid_produsen_rows.length > 0) {
+                    extraHtml += '<div class="mt-2 text-xs text-gray-700 font-semibold">Produsen Belum Valid:</div>';
+                    extraHtml += '<ul class="mt-1 text-xs list-disc pl-5 text-gray-700">';
+                    json.invalid_produsen_rows.forEach(row => {
+                        extraHtml += `<li>${esc(row.message)}</li>`;
                     });
                     extraHtml += '</ul>';
                 }

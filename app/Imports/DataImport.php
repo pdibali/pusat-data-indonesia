@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use App\Models\Metadata;
 use App\Models\Satuan;
+use App\Support\ProdusenValueParser;
 
 class DataImport
 {
@@ -67,6 +68,7 @@ class DataImport
     private array $metadataCache = [];
     private array $rujukanCache  = [];
     private array $produsenCache = [];
+    private array $produsenNameCache = [];
 
     private array $locationCache = []; // location_id => nama_wilayah
     private array $satuanCache   = [];   // lower(nama_satuan|simbol) => satuan_id
@@ -82,7 +84,6 @@ class DataImport
         $this->userId         = $userId ?: (Auth::check() ? Auth::user()->user_id : 0);
         $this->skipDuplicates = $skipDuplicates;
     }
-
     // ══════════════════════════════════════════════════════════
     // ENTRY POINT — PREVIEW
     // ══════════════════════════════════════════════════════════
@@ -104,6 +105,7 @@ class DataImport
         $errors           = [];
         $duplicates       = [];
         $invalid_metadata = [];
+        $invalid_produsen = [];
         $invalid_satuan   = [];
         $seenInFile       = [];
     
@@ -139,6 +141,9 @@ class DataImport
             foreach ($result['invalid_satuan'] ?? [] as $inv) {
                 $invalid_satuan[] = $inv;
             }
+            foreach ($result['invalid_produsen'] ?? [] as $invalid) {
+                $invalid_produsen[] = $invalid;
+            }
         }
     
         // ── Deteksi outlier berbasis DB (batch per metadata+location) ──────────
@@ -169,6 +174,7 @@ class DataImport
             'errors'            => $errors,
             'duplicates'        => $duplicates,
             'invalid_metadata'  => $uniqueInvalid,
+            'invalid_produsen'  => $invalid_produsen,
             'outliers'          => $outliers,
             'total_rows'        => count($dataRows),
             'valid'             => count($previewRows),
@@ -176,6 +182,7 @@ class DataImport
             'error'             => count($errors),
             'outlier_count'     => count($outliers),
             'invalid_meta_count'=> count($uniqueInvalid),
+            'invalid_produsen_count' => count($invalid_produsen),
             'period_type'       => $this->detectPeriodType($periodCols[0] ?? ''),
             'period_cols'       => $periodCols,
             // Teks satuan dari Excel yang tidak ketemu padanannya di tabel master `satuan`.
@@ -279,6 +286,18 @@ class DataImport
         $this->preloadRujukanCache($dataRows, $columns['rujukan_id']);
         $this->preloadProdusenCache($dataRows, $columns['produsen_id']);
         $this->preloadSatuanCache();
+
+        $invalidProdusenRows = $this->validateProdusenRows($dataRows, $columns['produsen_id']);
+        if (!empty($invalidProdusenRows)) {
+            return [
+                'success' => false,
+                'imported' => 0,
+                'skipped' => 0,
+                'errors' => count($invalidProdusenRows),
+                'invalid_produsen_rows' => $invalidProdusenRows,
+                'message' => 'Import dibatalkan. Perbaiki produsen_id di semua baris yang ditandai, lalu unggah ulang.',
+            ];
+        }
         
 
         $buffer    = [];
@@ -335,7 +354,7 @@ class DataImport
 
                     $rowsForOutlierDetection[] = array_merge($rec, ['key' => $key]);
                     $insertSet[$key] = true;
-                    $buffer[] = [
+                    $dataRow = [
                         'user_id'         => $this->userId,
                         'metadata_id'     => $rec['metadata_id'],
                         'location_id'     => $rec['location_id'],
@@ -349,9 +368,11 @@ class DataImport
                         'workflow_status' => ($recordIsAnomaly || $recordIsUnitConflict) ? Data::WORKFLOW_WARNING : Data::WORKFLOW_DRAFT,
                         'date_inputed'    => $now,
                     ];
+                    $dataRow['_produsen_ids'] = $rec['produsen_ids'] ?? [];
+                    $buffer[] = $dataRow;
 
                     if (count($buffer) >= self::BATCH_SIZE) {
-                        DB::table('data')->insert($buffer);
+                        $this->insertDataBatch($buffer);
                         $this->imported += count($buffer);
                         $buffer = [];
                     }
@@ -366,7 +387,7 @@ class DataImport
             }
 
             if (!empty($buffer)) {
-                DB::table('data')->insert($buffer);
+                $this->insertDataBatch($buffer);
                 $this->imported += count($buffer);
             }
 
@@ -1001,6 +1022,7 @@ class DataImport
         $records         = [];
         $errors          = [];
         $invalid_metadata = [];
+        $invalid_produsen = [];
         $invalid_satuan   = [];
 
         $metadataId = isset($row[$columns['metadata_id']]) ? (int) $row[$columns['metadata_id']] : null;
@@ -1015,9 +1037,24 @@ class DataImport
         $produsenRaw = $columns['produsen_id'] !== null
             ? ($row[$columns['produsen_id']] ?? null)
             : null;
-        $produsenId = $produsenRaw !== null && trim((string) $produsenRaw) !== ''
-            ? (int) $produsenRaw
-            : ($this->rujukanCache[$rujukanId]['produsen_id'] ?? null);
+        $produsenResolution = ProdusenValueParser::resolve(
+            $produsenRaw,
+            $this->produsenCache,
+            $this->produsenNameCache
+        );
+        $produsenIds = $produsenResolution['ids'];
+
+        if ($produsenIds === [] || $produsenResolution['invalid'] !== []) {
+            $invalid_produsen[] = [
+                'row' => $rowNum,
+                'value' => $produsenRaw,
+                'message' => $this->produsenValidationMessage($produsenRaw, $rowNum, $produsenResolution['invalid']),
+            ];
+            $errors[] = $invalid_produsen[0];
+
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan', 'invalid_produsen');
+        }
+        $produsenId = $produsenIds[0];
 
         // Validasi: jika ada rujukan_id tapi tidak ada di cache (tidak ditemukan di DB),
         // catat sebagai error dan skip seluruh baris.
@@ -1026,21 +1063,7 @@ class DataImport
                 'message' => "Baris $rowNum: rujukan_id '$rujukanId' tidak ditemukan.",
                 'row'     => $rowNum,
             ];
-            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
-        }
-        if ($produsenId === null) {
-            $errors[] = [
-                'message' => "Baris $rowNum: produsen_id kosong atau tidak valid.",
-                'row'     => $rowNum,
-            ];
-            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
-        }
-        if (!isset($this->produsenCache[$produsenId])) {
-            $errors[] = [
-                'message' => "Baris $rowNum: produsen_id '$produsenId' tidak ditemukan.",
-                'row'     => $rowNum,
-            ];
-            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan', 'invalid_produsen');
         }
         if ($locationId !== null && $locationId !== 0 && !DB::table('location')->where('location_id', $locationId)->exists()) {
         if (!isset($this->locationCache[$locationId])) {
@@ -1115,7 +1138,7 @@ class DataImport
         }
 
         if (!$metadataId || $locationId === null) {
-            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan', 'invalid_produsen');
         }
 
         $metaValidation = $this->metadataCache[$metadataId];
@@ -1155,7 +1178,7 @@ class DataImport
                 'satuan_tidak_ketemu' => implode(', ', array_unique($satuanNotFound)),
                 'row'                 => $rowNum,
             ];
-            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan', 'invalid_produsen');
         }
 
         // Bentrok satuan: satuan_metadata & satuan_rujukan sama-sama terisi & valid,
@@ -1206,7 +1229,11 @@ class DataImport
                 'rujukan_id'          => $rujukanId,
                 'nama_rujukan'        => $this->rujukanCache[$rujukanId]['nama'] ?? null,
                 'produsen_id'         => $produsenId,
-                'nama_produsen'       => $this->produsenCache[$produsenId]['nama'] ?? null,
+                'nama_produsen'       => implode('; ', array_map(
+                    fn ($id) => $this->produsenCache[$id]['nama'],
+                    $produsenIds
+                )),
+                'produsen_ids'        => $produsenIds,
                 'number_value'        => (float) $rawValue,
                 'satuan_id'           => $satuanId,
                 'satuan_asal_id'      => $satuanAsalId,
@@ -1222,6 +1249,7 @@ class DataImport
             'errors'           => $errors,
             'invalid_metadata' => $invalid_metadata,
             'invalid_satuan'   => $invalid_satuan,
+            'invalid_produsen' => $invalid_produsen,
         ];
     }
 
@@ -1255,28 +1283,89 @@ class DataImport
     private function preloadProdusenCache(array $dataRows, ?int $produsenColIndex): void
     {
         $ids = [];
+        $names = [];
         if ($produsenColIndex !== null) {
-            $ids = array_map(
-                fn($row) => isset($row[$produsenColIndex]) && trim((string) $row[$produsenColIndex]) !== ''
-                    ? (int) $row[$produsenColIndex]
-                    : null,
-                $dataRows
-            );
+            foreach ($dataRows as $row) {
+                foreach (ProdusenValueParser::tokens($row[$produsenColIndex] ?? null) as $value) {
+                    $names[] = $value;
+                    if (ctype_digit($value)) {
+                        $ids[] = (int) $value;
+                    }
+                }
+            }
         }
 
         $ids = array_values(array_unique(array_filter(array_merge(
             $ids,
             array_map(fn($rujukan) => $rujukan['produsen_id'] ?? null, $this->rujukanCache)
         ), fn($id) => $id !== null)));
+        $names = array_values(array_unique($names));
 
-        if (empty($ids)) return;
+        if (empty($ids) && empty($names)) return;
 
         $rows = DB::table('produsen_data')
-            ->whereIn('produsen_id', $ids)
+            ->where(function ($query) use ($ids, $names) {
+                if (!empty($ids)) {
+                    $query->whereIn('produsen_id', $ids);
+                }
+                if (!empty($names)) {
+                    $method = empty($ids) ? 'whereIn' : 'orWhereIn';
+                    $query->$method('nama_produsen', $names);
+                }
+            })
             ->get(['produsen_id', 'nama_produsen']);
 
         foreach ($rows as $row) {
             $this->produsenCache[$row->produsen_id] = ['nama' => $row->nama_produsen];
+            $this->produsenNameCache[$row->nama_produsen][] = $row->produsen_id;
+        }
+    }
+
+    private function produsenValidationMessage(mixed $value, int $rowNum, array $invalidTokens = []): string
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return "Baris $rowNum: produsen_id kosong. Isi dengan ID atau nama produsen terdaftar, pisahkan beberapa produsen dengan ';'.";
+        }
+
+        $invalidTokens = $invalidTokens ?: [$value];
+        return "Baris $rowNum: produsen berikut tidak ditemukan atau tidak unik: '".implode("', '", $invalidTokens)."'. Isi dengan ID/nama produsen terdaftar dan pisahkan beberapa produsen dengan ';'.";
+    }
+
+    private function validateProdusenRows(array $dataRows, ?int $produsenColIndex): array
+    {
+        $invalidRows = [];
+        foreach ($dataRows as $rowNum => $row) {
+            $value = $produsenColIndex !== null ? ($row[$produsenColIndex] ?? null) : null;
+            $resolution = ProdusenValueParser::resolve(
+                $value,
+                $this->produsenCache,
+                $this->produsenNameCache
+            );
+            if ($resolution['ids'] === [] || $resolution['invalid'] !== []) {
+                $invalidRows[] = [
+                    'row' => $rowNum,
+                    'value' => $value,
+                    'message' => $this->produsenValidationMessage($value, $rowNum, $resolution['invalid']),
+                ];
+            }
+        }
+
+        return $invalidRows;
+    }
+
+    private function insertDataBatch(array $buffer): void
+    {
+        foreach ($buffer as $row) {
+            $produsenIds = $row['_produsen_ids'];
+            unset($row['_produsen_ids']);
+            $dataId = DB::table('data')->insertGetId($row);
+            DB::table('data_produsen')->insert(
+                array_map(fn ($produsenId) => [
+                    'data_id' => $dataId,
+                    'produsen_id' => $produsenId,
+                ], $produsenIds)
+            );
         }
     }
 

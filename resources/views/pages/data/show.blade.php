@@ -176,8 +176,8 @@
                     <i class="fas fa-link text-rose-500"></i> Produsen Data
                 </h2>
 
-                @if($datum->produsen)
-                    <p class="text-sm text-gray-600">{{ $datum->produsen->nama_produsen }}</p>
+                @if($datum->produsen_display !== '')
+                    <p class="text-sm text-gray-600">{{ $datum->produsen_display }}</p>
                 @else
                     <p class="text-sm text-gray-400">Data produsen tidak ditemukan.</p>
                 @endif

@@ -90,7 +90,10 @@ class AuditTrailService
         foreach ($newValue as $key => $val) {
             $oldVal = $oldValue[$key] ?? null;
             // Cast ke string untuk perbandingan aman (decimal, integer, dll.)
-            if ((string) $oldVal !== (string) $val) {
+            $hasChanged = is_array($oldVal) || is_array($val)
+                ? $oldVal !== $val
+                : (string) $oldVal !== (string) $val;
+            if ($hasChanged) {
                 $changedOld[$key] = $oldVal;
                 $changedNew[$key] = $val;
             }

@@ -261,6 +261,57 @@ class DataEditTest extends TestCase
         $this->assertSame($importTime->time_id, $preview['rows'][0]['time_id']);
         $this->assertSame($manualProducer->produsen_id, $preview['rows'][0]['produsen_id']);
 
+        $multiProducerTime = Waktu::create([
+            'decade' => 2020,
+            'year' => 2026,
+            'semester' => 0,
+            'quarter' => 0,
+            'month' => 0,
+        ]);
+        $multiProducerSpreadsheet = new Spreadsheet;
+        $multiProducerSheet = $multiProducerSpreadsheet->getActiveSheet();
+        foreach ([
+            'A3' => 'metadata_id',
+            'B3' => 'nama_metadata',
+            'C3' => 'satuan_metadata',
+            'D3' => 'satuan_rujukan',
+            'E3' => 'location_id',
+            'F3' => 'nama_wilayah',
+            'G3' => 'rujukan_id',
+            'H3' => 'produsen_id',
+            'I3' => '2026',
+            'A4' => $metadata->metadata_id,
+            'B4' => $metadata->nama,
+            'E4' => $location->location_id,
+            'F4' => $location->nama_wilayah,
+            'G4' => $rujukan->rujukan_id,
+            'H4' => $manualProducer->produsen_id.', '.$manualProducer->nama_produsen.'; '.$newProducer->nama_produsen,
+            'I4' => 101,
+        ] as $cell => $value) {
+            $multiProducerSheet->setCellValue($cell, $value);
+        }
+        $multiProducerPath = tempnam(sys_get_temp_dir(), 'data-multi-producer-');
+        try {
+            (new Xlsx($multiProducerSpreadsheet))->save($multiProducerPath);
+            $multiPreview = (new DataImport)->preview($multiProducerPath);
+            $this->assertSame(1, $multiPreview['valid']);
+            $this->assertSame(
+                [$manualProducer->produsen_id, $newProducer->produsen_id],
+                $multiPreview['rows'][0]['produsen_ids']
+            );
+
+            $importResult = (new DataImport($user->user_id))->import($multiProducerPath);
+            $this->assertTrue($importResult['success'], $importResult['message']);
+            $importedData = Data::where('time_id', $multiProducerTime->time_id)->firstOrFail();
+            $this->assertSame($manualProducer->produsen_id, $importedData->produsen_id);
+            $this->assertSame(
+                [$manualProducer->produsen_id, $newProducer->produsen_id],
+                $importedData->produsens()->orderBy('produsen_data.produsen_id')->pluck('produsen_data.produsen_id')->map(fn ($id) => (int) $id)->all()
+            );
+        } finally {
+            unlink($multiProducerPath);
+        }
+
         $datum->status = Data::STATUS_PENDING;
         $datum->save();
 
@@ -299,9 +350,18 @@ class DataEditTest extends TestCase
             'E4' => $location->location_id,
             'F4' => $location->nama_wilayah,
             'G4' => $newReference->rujukan_id,
-            'H4' => $newProducer->produsen_id,
+            'H4' => $newProducer->produsen_id.'; '.$manualProducer->nama_produsen,
             'K4' => 123.5,
             'L4' => 77,
+            'A5' => $metadata->metadata_id,
+            'E5' => $location->location_id,
+            'H5' => 'Produsen Tidak Terdaftar',
+            'K5' => 90,
+            'L5' => 'bukan angka',
+            'A6' => $metadata->metadata_id,
+            'E6' => $location->location_id,
+            'D6' => 'MVA',
+            'K6' => 90,
         ] as $cell => $value) {
             $bulkSheet->setCellValue($cell, $value);
         }
@@ -329,6 +389,10 @@ class DataEditTest extends TestCase
                 ->assertSee('Unit Metadata Baru')
                 ->assertSee('Unit Rujukan Lama')
                 ->assertSee('Unit Rujukan Baru')
+                ->assertSee('Baris dilewati karena error')
+                ->assertSee('Produsen Tidak Terdaftar')
+                ->assertSee('periode 2025: nilai harus berupa angka')
+                ->assertSee("satuan_rujukan 'MVA' tidak ditemukan")
                 ->assertSee('1'); // The 2025 record is unmatched and should be skipped.
             $this->assertDatabaseHas('data', ['id' => $datum->id, 'number_value' => '100.00']);
             $this->assertDatabaseHas('data', ['id' => $blankDatum->id, 'number_value' => '55.00']);
@@ -349,6 +413,10 @@ class DataEditTest extends TestCase
                 'status' => Data::STATUS_PENDING,
                 'workflow_status' => Data::WORKFLOW_DRAFT,
             ]);
+            $this->assertSame(
+                [$manualProducer->produsen_id, $newProducer->produsen_id],
+                $datum->fresh()->produsens()->orderBy('produsen_data.produsen_id')->pluck('produsen_data.produsen_id')->map(fn ($id) => (int) $id)->all()
+            );
             $this->assertDatabaseHas('data', [
                 'id' => $unchangedDatum->id,
                 'number_value' => '85.00',

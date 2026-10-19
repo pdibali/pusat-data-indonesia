@@ -355,6 +355,7 @@ class DataController extends Controller
             'workflow_status' => Data::WORKFLOW_DRAFT,
             'date_inputed' => Carbon::now(),
         ]);
+        $data->produsens()->sync([$data->produsen_id]);
 
         // ── Audit trail: data dibuat ──────────────────────────
         $this->auditTrail->recordCreated('data', $data->id, [
@@ -473,6 +474,7 @@ class DataController extends Controller
                         'error_rows' => $result['error_rows'] ?? [],
                         'invalid_metadata_rows' => $result['invalid_metadata_rows'] ?? [],
                         'invalid_satuan_rows' => $result['invalid_satuan_rows'] ?? [],
+                        'invalid_produsen_rows' => $result['invalid_produsen_rows'] ?? [],
                     ], 422);
                 }
 
@@ -629,7 +631,10 @@ class DataController extends Controller
         }
         if ($request->filled('filter_produsen')) {
             $v = $request->filter_produsen;
-            $query->whereHas('produsen', fn ($q) => $q->where('nama_produsen', 'like', "%{$v}%"));
+            $query->where(function ($query) use ($v) {
+                $query->whereHas('produsens', fn ($q) => $q->where('nama_produsen', 'like', "%{$v}%"))
+                    ->orWhereHas('produsen', fn ($q) => $q->where('nama_produsen', 'like', "%{$v}%"));
+            });
         }
         if ($request->filled('filter_lokasi')) {
             $v = $request->filter_lokasi;
@@ -893,6 +898,7 @@ class DataController extends Controller
         ]);
 
         $datum->save();
+        $datum->produsens()->sync([$datum->produsen_id]);
 
         $this->auditTrail->recordUpdated('data', $datum->id, $oldValues, $datum->only([
             'metadata_id', 'location_id', 'time_id', 'rujukan_id', 'produsen_id', 'number_value',

@@ -16,6 +16,8 @@
             <p class="text-xs text-gray-400 mt-2">
                 Gunakan template dari halaman <a href="{{ route('metadata.index') }}" class="text-sky-600 hover:underline">Metadata</a>.
                 Baris yang belum ada akan dilewati. Sel periode, rujukan, produsen, atau satuan yang kosong tidak mengubah nilai tersimpan.
+                Untuk beberapa produsen, isi kolom <code>produsen_id</code> dengan ID/nama produsen dipisahkan titik koma (;).
+                Baris yang mengandung error dilewati; baris valid tetap dapat diterapkan.
             </p>
         </div>
 
@@ -65,6 +67,22 @@
                         <p class="mt-1 text-2xl font-bold text-gray-800">{{ $preview['unmatched_count'] }}</p>
                     </div>
                 </div>
+
+                @if($preview['errors'] !== [])
+                    <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+                        <h3 class="font-semibold text-red-800">
+                            Baris dilewati karena error ({{ count($preview['errors']) }})
+                        </h3>
+                        <p class="mt-1 text-xs text-red-700">
+                            Perbaiki error berikut pada file Excel. Perubahan dari baris valid tidak terpengaruh.
+                        </p>
+                        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-red-700">
+                            @foreach($preview['errors'] as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 @if($preview['changes'] !== [])
                     <div class="mt-5 overflow-x-auto rounded-lg border border-gray-200">
@@ -116,7 +134,7 @@
                     </form>
                 @else
                     <div class="mt-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                        Tidak ada perbedaan nilai yang perlu diterapkan.
+                        Tidak ada perubahan valid yang perlu diterapkan.
                     </div>
                 @endif
             </section>

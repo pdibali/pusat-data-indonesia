@@ -288,9 +288,9 @@
                                     {{ $tipeTxt }}
                                 </span>
                                 {{-- Produsen saat ini (untuk context) --}}
-                                @if($data?->produsen?->nama_produsen)
+                                @if($data?->produsen_display)
                                 <p class="text-gray-400 mt-1 text-[11px]">
-                                    <i class="fas fa-building text-[9px] mr-0.5"></i>{{ $data->produsen->nama_produsen }}
+                                    <i class="fas fa-building text-[9px] mr-0.5"></i>{{ $data->produsen_display }}
                                 </p>
                                 @endif
                             </td>

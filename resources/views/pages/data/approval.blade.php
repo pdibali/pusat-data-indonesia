@@ -345,7 +345,7 @@
                         </td>
 
                         <td class="px-4 py-3 text-xs text-gray-500">
-                            {{ $row->produsen?->nama_produsen ?? '-' }}
+                            {{ $row->produsen_display ?: '-' }}
                         </td>
                         <td class="px-4 py-3 text-xs text-gray-500">
                             {{ \Carbon\Carbon::parse($row->date_inputed)->translatedFormat('d M Y') }}

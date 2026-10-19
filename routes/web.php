@@ -191,6 +191,10 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::post('users/{user}/verify', [UserController::class, 'verify'])->name('users.verify');
         Route::resource('groups',   GroupController::class);
+        Route::get('produsen/import', [ProdusenController::class, 'importForm'])->name('produsen.import');
+        Route::get('produsen/import/template', [ProdusenController::class, 'importTemplate'])->name('produsen.import.template');
+        Route::post('produsen/import/preview', [ProdusenController::class, 'previewImport'])->name('produsen.import.preview');
+        Route::post('produsen/import/confirm', [ProdusenController::class, 'confirmImport'])->name('produsen.import.confirm');
         Route::get('produsen/export', [ProdusenController::class, 'export'])->name('produsen.export');
         Route::resource('produsen', ProdusenController::class);
         Route::resource('rujukan',  RujukanController::class);

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -110,6 +111,22 @@ class Data extends Model
     public function produsen(): BelongsTo
     {
         return $this->belongsTo(ProdusenData::class, 'produsen_id', 'produsen_id');
+    }
+
+    public function produsens(): BelongsToMany
+    {
+        return $this->belongsToMany(ProdusenData::class, 'data_produsen', 'data_id', 'produsen_id')
+            ->orderByPivot('produsen_id');
+    }
+
+    public function getProdusenDisplayAttribute(): string
+    {
+        $names = $this->produsens->pluck('nama_produsen');
+        if ($names->isEmpty() && $this->produsen) {
+            $names->push($this->produsen->nama_produsen);
+        }
+
+        return $names->implode('; ');
     }
 
     // ─── SCOPES ───────────────────────────────────────────────

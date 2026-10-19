@@ -227,7 +227,7 @@
         <tr>
             <td class="meta-label">Kepada Yth.</td>
             <td class="meta-colon">:</td>
-            <td><strong>{{ $data->produsen?->nama_produsen ?? $data->rujukan?->produsen?->nama_produsen ?? '-' }}</strong></td>
+            <td><strong>{{ $data->produsen_display ?: ($data->rujukan?->produsen?->nama_produsen ?? '-') }}</strong></td>
         </tr>
         <tr>
             <td class="meta-label">Perihal</td>
@@ -328,7 +328,7 @@
 
     @if($anomaly->anomaly_type === \App\Models\Anomaly::TYPE_SOURCE_CONFLICT && $conflictData)
 
-    <div class="section-heading">Detail Data {{ $data->produsen?->nama_produsen ?? '-' }}</div>
+    <div class="section-heading">Detail Data {{ $data->produsen_display ?: '-' }}</div>
         <table class="detail-table">
             <tr>
                 <td class="label">Judul Data</td>
@@ -358,7 +358,7 @@
             <tr>
                 <td class="label">Produsen Data</td>
                 <td class="colon">:</td>
-                <td>{{ $data->produsen?->nama_produsen ?? '-' }}</td>
+                <td>{{ $data->produsen_display ?: '-' }}</td>
             </tr>
             <tr>
                 <td class="label">Rujukan</td>
@@ -367,7 +367,7 @@
             </tr>
         </table>
 
-        <div class="section-heading">Detail Data {{ $conflictData->produsen?->nama_produsen ?? '-' }}</div>
+        <div class="section-heading">Detail Data {{ $conflictData->produsen_display ?: '-' }}</div>
         <table class="detail-table">
             <tr>
                 <td class="label">Judul Data</td>
@@ -397,7 +397,7 @@
             <tr>
                 <td class="label">Produsen Data</td>
                 <td class="colon">:</td>
-                <td>{{ $conflictData->produsen?->nama_produsen ?? '-' }}</td>
+                <td>{{ $conflictData->produsen_display ?: '-' }}</td>
             </tr>
             <tr>
                 <td class="label">Rujukan</td>
@@ -438,7 +438,7 @@
             <tr>
                 <td class="label">Produsen Data</td>
                 <td class="colon">:</td>
-                <td>{{ $data->produsen?->nama_produsen ?? '-' }}</td>
+                <td>{{ $data->produsen_display ?: '-' }}</td>
             </tr>
             <tr>
                 <td class="label">Rujukan</td>
@@ -477,7 +477,7 @@
             <tr>
                 <td class="label">Produsen Data</td>
                 <td class="colon">:</td>
-                <td>{{ $data->produsen?->nama_produsen ?? '-' }}</td>
+                <td>{{ $data->produsen_display ?: '-' }}</td>
             </tr>
             <tr>
                 <td class="label">Rujukan</td>
@@ -513,7 +513,7 @@
             <tr>
                 <td class="label">Produsen Data</td>
                 <td class="colon">:</td>
-                <td>{{ $data->produsen?->nama_produsen ?? '-' }}</td>
+                <td>{{ $data->produsen_display ?: '-' }}</td>
             </tr>
             <tr>
                 <td class="label">Rujukan</td>

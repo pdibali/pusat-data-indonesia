@@ -145,7 +145,7 @@
                                         . ($data->time->quarter ? '/Q'.$data->time->quarter    : '')
                                         . ($data->time->semester? '/S'.$data->time->semester   : ''))
                                     : '-'],
-                                ['label'=>'Sumber/Produsen','value'=> $data->produsen?->nama_produsen ?? '-'],
+                                ['label'=>'Sumber/Produsen','value'=> $data->produsen_display ?: '-'],
                                 ['label'=>'Rujukan', 'value'=> $data->rujukan?->nama_rujukan ?? '-'],
                                 ['label'=>'Diinput oleh', 'value'=> $data->user?->name ?? '-'],
                                 ['label'=>'Tanggal Input', 'value'=> $data->date_inputed?->format('d/m/Y H:i') ?? '-'],
@@ -181,7 +181,7 @@
                                         . ($cd->time->quarter ? '/Q'.$cd->time->quarter    : '')
                                         . ($cd->time->semester? '/S'.$cd->time->semester   : ''))
                                     : '-'],
-                                ['label'=>'Sumber/Produsen','value'=> $cd->produsen?->nama_produsen ?? '-'],
+                                ['label'=>'Sumber/Produsen','value'=> $cd->produsen_display ?: '-'],
                                 ['label'=>'Rujukan', 'value'=> $cd->rujukan?->nama_rujukan ?? '-'],
                                 ['label'=>'Diinput oleh', 'value'=> $cd->user?->name ?? '-'],
                                 ['label'=>'Tanggal Input', 'value'=> $cd->date_inputed?->format('d/m/Y H:i') ?? '-'],
@@ -285,7 +285,7 @@
                                     . ($data->time->quarter ? '/Q'.$data->time->quarter    : '')
                                     . ($data->time->semester? '/S'.$data->time->semester   : ''))
                                 : '-'],
-                            ['label'=>'Sumber/Produsen', 'value'=> $data->produsen?->nama_produsen ?? '-'],
+                            ['label'=>'Sumber/Produsen', 'value'=> $data->produsen_display ?: '-'],
                             ['label'=>'Rujukan',   'value'=> $data->rujukan?->nama_rujukan ?? '-'],
                             ['label'=>'Diinput oleh', 'value'=> $data->user?->name ?? '-'],
                             ['label'=>'Tanggal Input', 'value'=> $data->date_inputed?->format('d/m/Y H:i') ?? '-'],
