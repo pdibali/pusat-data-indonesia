@@ -2,17 +2,37 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProdusenExport;
 use App\Models\ProdusenData;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProdusenController extends Controller
 {
     public function index(Request $request)
     {
+        $produsen = $this->produsenQuery($request)
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('pages.produsen.index', compact('produsen'));
+    }
+
+    public function export(Request $request)
+    {
+        return Excel::download(
+            new ProdusenExport($this->produsenQuery($request)),
+            'produsen.xlsx'
+        );
+    }
+
+    private function produsenQuery(Request $request): Builder
+    {
         $query = ProdusenData::where('status', 1);
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('nama_produsen', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
@@ -22,12 +42,9 @@ class ProdusenController extends Controller
         }
 
         $sortDirection = $request->input('sort', 'terbaru') === 'terlama' ? 'asc' : 'desc';
-        $produsen = $query->orderBy('created_at', $sortDirection)
-            ->orderBy('produsen_id', $sortDirection)
-            ->paginate(10)
-            ->withQueryString();
 
-        return view('pages.produsen.index', compact('produsen'));
+        return $query->orderBy('created_at', $sortDirection)
+            ->orderBy('produsen_id', $sortDirection);
     }
 
     public function create()

@@ -191,6 +191,7 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::post('users/{user}/verify', [UserController::class, 'verify'])->name('users.verify');
         Route::resource('groups',   GroupController::class);
+        Route::get('produsen/export', [ProdusenController::class, 'export'])->name('produsen.export');
         Route::resource('produsen', ProdusenController::class);
         Route::resource('rujukan',  RujukanController::class);
         Route::resource('klasifikasi', KlasifikasiController::class);
@@ -316,6 +317,9 @@ Route::middleware(['is.login', 'is.pengelola', 'is.customer'])->group(function (
         Route::post('/preview-excel',  [DataController::class, 'previewExcel'])->name('preview_excel');
         Route::post('/import-excel',   [DataController::class, 'importExcel'])->name('import_excel');
         Route::get('/template-excel',  [DataController::class, 'downloadTemplateExcel'])->name('template_excel');
+        Route::get('/bulk-update', [DataController::class, 'bulkUpdate'])->name('bulk_update');
+        Route::post('/bulk-update/preview', [DataController::class, 'previewBulkUpdate'])->name('bulk_update.preview');
+        Route::post('/bulk-update/apply', [DataController::class, 'applyBulkUpdate'])->name('bulk_update.apply');
 
         // Export Data (Excel / PDF / JSON)
         Route::get('/export/excel', [DataExportController::class, 'excel'])->name('export.excel');

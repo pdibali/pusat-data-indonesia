@@ -2,6 +2,15 @@
 
 @section('content')
 
+@php
+    $approvalFilterKeys = [
+        'metadata_id', 'filter_rujukan', 'filter_lokasi', 'filter_tahun',
+        'filter_granularitas', 'filter_sub_periode', 'filter_dekade',
+        'filter_tanggal_lengkap', 'filter_nilai_min', 'filter_nilai_max',
+        'filter_user', 'filter_produsen', 'filter_tanggal_dari', 'filter_tanggal_sampai',
+    ];
+@endphp
+
     <a href="{{ route('data.index') }}"
         class="flex items-center gap-1 font-semibold text-sky-600 pt-6 ps-4 mb-4 hover:text-sky-900 text-sm transition-colors">
             <i class="fas fa-angle-left"></i> Kembali
@@ -37,14 +46,14 @@
             <p class="text-xs text-amber-400 mt-1">data pending</p>
         </div>
         <div class="bg-green-50 border border-green-100 rounded-lg p-4">
-            <p class="text-xs text-green-500 font-medium uppercase tracking-wide">Sudah Disetujui</p>
+            <p class="text-xs text-green-500 font-medium uppercase tracking-wide">Active</p>
             <p class="text-2xl font-bold text-green-700 mt-1">{{ number_format($approvedCount) }}</p>
-            <p class="text-xs text-green-400 mt-1">data available</p>
+            <p class="text-xs text-green-400 mt-1">data active</p>
         </div>
         <div class="bg-red-50 border border-red-100 rounded-lg p-4">
-            <p class="text-xs text-red-500 font-medium uppercase tracking-wide">Ditolak</p>
+            <p class="text-xs text-red-500 font-medium uppercase tracking-wide">Inactive</p>
             <p class="text-2xl font-bold text-red-700 mt-1">{{ number_format($rejectedCount) }}</p>
-            <p class="text-xs text-red-400 mt-1">data rejected</p>
+            <p class="text-xs text-red-400 mt-1">data inactive</p>
         </div>
     </div>
 
@@ -56,12 +65,12 @@
                 class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
                 onchange="applyFilters()">
                 <option value="0" {{ request('status', '0') == '0' ? 'selected' : '' }}>Pending</option>
-                <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Approved</option>
-                <option value="2" {{ request('status') == '2' ? 'selected' : '' }}>Ditolak</option>
+                <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Active</option>
+                <option value="2" {{ request('status') == '2' ? 'selected' : '' }}>Inactive</option>
             </select>
         </div>
 
-        @if(request()->hasAny(['metadata_id','filter_lokasi','filter_tahun','filter_nilai_min','filter_nilai_max','filter_user','filter_tanggal_dari','filter_tanggal_sampai']))
+        @if(request()->hasAny($approvalFilterKeys))
             <a href="{{ route('data.approval', request()->only('status')) }}"
                class="border border-gray-300 hover:bg-gray-50 text-gray-500 px-4 py-2 rounded-md text-sm transition-colors self-end">
                 <i class="fas fa-times mr-1"></i> Reset Semua Filter
@@ -69,13 +78,13 @@
         @endif
 
         {{-- Bulk approve button — menghormati filter kolom yang aktif --}}
-        @if($pendingCount > 0 && request('status', '0') == '0')
+        @if($filteredPendingCount > 0 && request('status', '0') == '0')
             <div class="ml-auto self-end">
                 <button type="button" onclick="confirmBulkApprove()"
                     class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-semibold
                         flex items-center gap-2 transition-colors shadow-md shadow-green-400/30">
                     <i class="fas fa-check-double"></i>
-                    Approve Semua Data ({{ number_format($pendingCount) }})
+                    Approve Semua Data ({{ number_format($filteredPendingCount) }})
                 </button>
             </div>
         @endif
@@ -88,6 +97,7 @@
                 <tr>
                     <th class="px-4 py-3 font-semibold w-10">No</th>
                     <th class="px-4 py-3 font-semibold min-w-44">Metadata</th>
+                    <th class="px-4 py-3 font-semibold min-w-36">Rujukan</th>
                     <th class="px-4 py-3 font-semibold min-w-32">Lokasi</th>
                     <th class="px-4 py-3 font-semibold min-w-28">Waktu</th>
                     <th class="px-4 py-3 font-semibold min-w-32">Nilai</th>
@@ -117,6 +127,19 @@
                         </select>
                     </td>
 
+                    {{-- Rujukan --}}
+                    <td class="px-2 py-1.5">
+                        <select id="rujukanSelect" class="tom-select w-full rounded-md text-xs bg-white">
+                            <option value=""></option>
+                            @foreach($rujukanList as $rujukan)
+                                <option value="{{ $rujukan->rujukan_id }}"
+                                    {{ request('filter_rujukan') == $rujukan->rujukan_id ? 'selected' : '' }}>
+                                    {{ $rujukan->nama_rujukan }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </td>
+
                     {{-- Lokasi --}}
                     <td class="px-2 py-1.5">
                         <input type="text" id="filterLokasi" value="{{ request('filter_lokasi') }}"
@@ -127,10 +150,12 @@
 
                     {{-- Waktu (tahun + granularitas) --}}
                     <td class="px-2 py-1.5 space-y-1">
-                        <input type="text" id="filterTahun" value="{{ request('filter_tahun') }}"
-                               placeholder="Filter tahun..."
-                               class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300"
-                               onkeydown="if(event.key==='Enter') applyFilters()">
+                        <div id="filterYearWrapper">
+                            <input type="number" id="filterTahun" value="{{ request('filter_tahun') }}"
+                                   placeholder="Filter tahun..."
+                                   class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300"
+                                   onkeydown="if(event.key==='Enter') applyFilters()">
+                        </div>
 
                         <select id="filterGranularitas"
                                 class="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300"
@@ -141,7 +166,9 @@
                             <option value="semester" @selected(request('filter_granularitas')==='semester')>Semester</option>
                             <option value="quarter"  @selected(request('filter_granularitas')==='quarter')>Kuartal</option>
                             <option value="bulanan"  @selected(request('filter_granularitas')==='bulanan')>Bulanan</option>
-                            <option value="tanggal"  @selected(request('filter_granularitas')==='tanggal')>Tanggal Lengkap</option>
+                            @if($supportsDailyPeriods)
+                                <option value="tanggal" @selected(request('filter_granularitas')==='tanggal')>Tanggal Lengkap</option>
+                            @endif
                         </select>
 
                         {{-- sub-periode: semester / kuartal / bulan (diisi via JS) --}}
@@ -157,9 +184,11 @@
                                onkeydown="if(event.key==='Enter') applyFilters()">
 
                         {{-- tanggal lengkap --}}
-                        <input type="date" id="filterTanggalLengkap" value="{{ request('filter_tanggal_lengkap') }}"
-                               class="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300 hidden"
-                               onchange="applyFilters()">
+                        @if($supportsDailyPeriods)
+                            <input type="date" id="filterTanggalLengkap" value="{{ request('filter_tanggal_lengkap') }}"
+                                   class="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-sky-300 hidden"
+                                   onchange="applyFilters()">
+                        @endif
                     </td>
 
                     {{-- Nilai (min - max) --}}
@@ -235,6 +264,9 @@
                                     {{ $row->metadata->klasifikasi->nama_klasifikasi }}
                                 </p>
                             @endif
+                        </td>
+                        <td class="px-4 py-3 text-xs text-gray-500">
+                            {{ $row->rujukan?->nama_rujukan ?? '-' }}
                         </td>
                         <td class="px-4 py-3 text-xs">
                             @if($row->location)
@@ -325,8 +357,8 @@
                             @php
                                 $statusMap = [
                                     0 => ['label' => 'Pending',   'color' => 'yellow'],
-                                    1 => ['label' => 'Available', 'color' => 'green'],
-                                    2 => ['label' => 'Ditolak',   'color' => 'red'],
+                                    1 => ['label' => 'Active',   'color' => 'green'],
+                                    2 => ['label' => 'Inactive', 'color' => 'red'],
                                 ];
                                 $s = $statusMap[$row->status] ?? $statusMap[0];
                             @endphp
@@ -396,11 +428,11 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-4 py-16 text-center">
+                        <td colspan="11" class="px-4 py-16 text-center">
                             <div class="flex flex-col items-center gap-3 text-gray-400">
                                 <i class="fas fa-clipboard-check text-4xl text-gray-300"></i>
                                 <p class="font-medium text-gray-500">
-                                    @if(request()->hasAny(['metadata_id','filter_lokasi','filter_tahun','filter_nilai_min','filter_nilai_max','filter_user','filter_tanggal_dari','filter_tanggal_sampai']))
+                                    @if(request()->hasAny($approvalFilterKeys))
                                         Tidak ada data yang cocok dengan filter
                                     @elseif(request('status', '0') == '0')
                                         Tidak ada data yang menunggu verifikasi
@@ -505,7 +537,7 @@
         document.querySelectorAll(selector).forEach(el => {
             if (!el.tomselect) {
                 new TomSelect(el, {
-                    create: true,
+            create: false,
                     sortField: {
                         field: "text",
                         direction: "asc"
@@ -631,8 +663,22 @@
 
         setOrDelete('status',                document.getElementById('statusSelect')?.value);
         setOrDelete('metadata_id',           document.getElementById('metadataSelect')?.value);
+        setOrDelete('filter_rujukan',        document.getElementById('rujukanSelect')?.value);
         setOrDelete('filter_lokasi',         document.getElementById('filterLokasi')?.value);
-        setOrDelete('filter_tahun',          document.getElementById('filterTahun')?.value);
+        const granularity = document.getElementById('filterGranularitas')?.value;
+        setOrDelete('filter_granularitas', granularity);
+        setOrDelete('filter_tahun', granularity === 'dekade' ? '' : document.getElementById('filterTahun')?.value);
+        setOrDelete(
+            'filter_sub_periode',
+            ['semester', 'quarter', 'bulanan'].includes(granularity)
+                ? document.getElementById('filterSubPeriode')?.value
+                : ''
+        );
+        setOrDelete('filter_dekade', granularity === 'dekade' ? document.getElementById('filterDekade')?.value : '');
+        setOrDelete(
+            'filter_tanggal_lengkap',
+            granularity === 'tanggal' ? document.getElementById('filterTanggalLengkap')?.value : ''
+        );
         setOrDelete('filter_nilai_min',      document.getElementById('filterNilaiMin')?.value);
         setOrDelete('filter_nilai_max',      document.getElementById('filterNilaiMax')?.value);
         setOrDelete('filter_user',           document.getElementById('filterUser')?.value);
@@ -646,14 +692,47 @@
 
     function resetFilters() {
         const url = new URL(window.location.href);
-        ['metadata_id','filter_lokasi','filter_tahun','filter_nilai_min','filter_nilai_max',
-         'filter_user','filter_tanggal_dari','filter_tanggal_sampai','page']
+        ['metadata_id','filter_rujukan','filter_lokasi','filter_tahun','filter_granularitas',
+         'filter_sub_periode','filter_dekade','filter_tanggal_lengkap','filter_nilai_min',
+         'filter_nilai_max','filter_user','filter_produsen','filter_tanggal_dari',
+         'filter_tanggal_sampai','page']
             .forEach(k => url.searchParams.delete(k));
         window.location.href = url.toString();
     }
 
-    // Trigger applyFilters() saat pilihan TomSelect metadata berubah
+    function updateGranularityControls(preserveSubPeriod = true) {
+        const granularity = document.getElementById('filterGranularitas').value;
+        const subPeriod = document.getElementById('filterSubPeriode');
+        const selectedSubPeriod = preserveSubPeriod ? @json(request('filter_sub_periode', '')) : '';
+        const subPeriods = {
+            semester: [['1', 'Semester 1'], ['2', 'Semester 2']],
+            quarter: [['1', 'Kuartal 1'], ['2', 'Kuartal 2'], ['3', 'Kuartal 3'], ['4', 'Kuartal 4']],
+            bulanan: Array.from({ length: 12 }, (_, index) => [
+                String(index + 1),
+                new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(2020, index, 1)),
+            ]),
+        };
+        const options = subPeriods[granularity] || [];
+        subPeriod.replaceChildren(new Option('Semua sub-periode', ''));
+        options.forEach(([value, label]) => subPeriod.add(new Option(label, value)));
+        subPeriod.value = options.some(([value]) => value === selectedSubPeriod)
+            ? selectedSubPeriod
+            : '';
+        subPeriod.classList.toggle('hidden', options.length === 0);
+        document.getElementById('filterDekade').classList.toggle('hidden', granularity !== 'dekade');
+        document.getElementById('filterTanggalLengkap')?.classList.toggle('hidden', granularity !== 'tanggal');
+        document.getElementById('filterYearWrapper').classList.toggle('hidden', granularity === 'dekade');
+    }
+
+    function onGranularitasChange() {
+        updateGranularityControls(false);
+        applyFilters();
+    }
+
     document.getElementById('metadataSelect')?.addEventListener('change', applyFilters);
+    document.getElementById('rujukanSelect')?.addEventListener('change', applyFilters);
+    document.getElementById('filterSubPeriode')?.addEventListener('change', applyFilters);
+    updateGranularityControls();
 
     initTomSelect('.tom-select');
 </script>
@@ -662,7 +741,7 @@
 <form id="bulkApproveForm" action="{{ route('data.bulk_approve') }}" method="POST" class="hidden">
     @csrf
     <input type="hidden" id="bulkApproveMode" name="mode" value="all">
-    @foreach(request()->only(['metadata_id','filter_lokasi','filter_tahun','filter_nilai_min','filter_nilai_max','filter_user','filter_tanggal_dari','filter_tanggal_sampai']) as $key => $val)
+    @foreach(request()->only($approvalFilterKeys) as $key => $val)
         <input type="hidden" name="{{ $key }}" value="{{ $val }}">
     @endforeach
 </form>

@@ -363,6 +363,7 @@ class MetadataController extends Controller
                         'location_id' => $this->buildKodeWilayah($loc),
                         'nama_wilayah'  => $namaLokasi,
                         'rujukan_id'    => null,
+                        'produsen_id'   => $produsen->produsen_id,
                         'flag_desimal' => $meta->flag_desimal ?? 0,
                         'periods'      => [],
                     ];
@@ -382,6 +383,7 @@ class MetadataController extends Controller
                     'location_id' => '',
                     'nama_wilayah'  => null,
                     'rujukan_id'    => null,
+                    'produsen_id'   => $produsen->produsen_id,
                     'flag_desimal' => $meta->flag_desimal ?? 0,
                     'periods'      => array_fill_keys($periodCols, null),
                 ];
@@ -412,7 +414,21 @@ class MetadataController extends Controller
 
         $ws = $spreadsheet->getActiveSheet()->setTitle('Data Import');
 
-        $totalCols     = 6 + count($periodCols);
+        // ── Baris 3: Header kolom ─────────────────────────────────────────────
+        $fixedHeaders = [
+            ['label' => 'metadata_id',   'width' => 13, 'note' => 'ID metadata (otomatis, jangan diubah)'],
+            ['label' => 'nama_metadata', 'width' => 40, 'note' => 'Nama metadata (otomatis, jangan diubah)'],
+            ['label' => 'satuan_metadata',        'width' => 20, 'note' => 'Satuan metadata'],
+            ['label' => 'satuan_rujukan',        'width' => 20, 'note' => 'Satuan rujukan'],
+            ['label' => 'location_id',   'width' => 13, 'note' => 'ID lokasi dari tabel dimensi lokasi'],
+            ['label' => 'nama_wilayah',   'width' => 40, 'note' => 'Nama lokasi (referensi, boleh dikosongkan)'],
+            ['label' => 'rujukan_id',    'width' => 15, 'note' => 'ID rujukan dari tabel rujukan'],
+            ['label' => 'produsen_id',   'width' => 15, 'note' => 'ID produsen dari tabel produsen_data'],
+        ];
+        $fixedColumnCount = count($fixedHeaders);
+        $periodStartIndex = $fixedColumnCount + 1;
+        $periodStartColumn = $this->colLetter($periodStartIndex);
+        $totalCols = $fixedColumnCount + count($periodCols);
         $lastColLetter = $this->colLetter($totalCols);
 
         // ── Baris 1: Judul ────────────────────────────────────────────────────
@@ -445,17 +461,6 @@ class MetadataController extends Controller
         ]);
         $ws->getRowDimension(2)->setRowHeight(16);
 
-        // ── Baris 3: Header kolom ─────────────────────────────────────────────
-        $fixedHeaders = [
-            ['label' => 'metadata_id',   'width' => 13, 'note' => 'ID metadata (otomatis, jangan diubah)'],
-            ['label' => 'nama_metadata', 'width' => 40, 'note' => 'Nama metadata (otomatis, jangan diubah)'],
-            ['label' => 'satuan_metadata',        'width' => 20, 'note' => 'Satuan metadata'],
-            ['label' => 'satuan_rujukan',        'width' => 20, 'note' => 'Satuan rujukan'],
-            ['label' => 'location_id',   'width' => 13, 'note' => 'ID lokasi dari tabel dimensi lokasi'],
-            ['label' => 'nama_wilayah',   'width' => 40, 'note' => 'Nama lokasi (referensi, boleh dikosongkan)'],
-            ['label' => 'rujukan_id',    'width' => 15, 'note' => 'ID rujukan dari tabel rujukan'],
-        ];
-
         foreach ($fixedHeaders as $i => $h) {
             $col  = $this->colLetter($i + 1);
             $cell = $col . '3';
@@ -465,13 +470,13 @@ class MetadataController extends Controller
         }
 
         foreach ($periodCols as $pi => $periodLabel) {
-            $col = $this->colLetter(7 + $pi);
+            $col = $this->colLetter($periodStartIndex + $pi);
             $ws->setCellValue($col . '3', $periodLabel);
             $ws->getColumnDimension($col)->setWidth(12);
         }
 
-        // Style header A–F (sky-600)
-        $ws->getStyle('A3:F3')->applyFromArray([
+        // Style fixed headers (sky-600)
+        $ws->getStyle('A3:H3')->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
             'fill'      => ['fillType' => Fill::FILL_SOLID,
                             'startColor' => ['rgb' => $C_HEADER]],
@@ -482,7 +487,7 @@ class MetadataController extends Controller
         ]);
 
         if (count($periodCols) > 0) {
-            $ws->getStyle('G3:' . $lastColLetter . '3')->applyFromArray([
+            $ws->getStyle($periodStartColumn . '3:' . $lastColLetter . '3')->applyFromArray([
                 'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
                 'fill'      => ['fillType' => Fill::FILL_SOLID,
                                 'startColor' => ['rgb' => $C_PERIOD]],
@@ -510,14 +515,15 @@ class MetadataController extends Controller
                 $ws->setCellValue('B' . $rowNum, $row['nama_metadata']);
                 $ws->setCellValue('C' . $rowNum, $row['satuan_metadata']);
                 $ws->setCellValue('D' . $rowNum, $row['satuan_rujukan']);
-                $ws->setCellValue('D' . $rowNum, $row['location_id']);
-                $ws->setCellValue('E' . $rowNum, $row['nama_wilayah']);
-                $ws->setCellValue('F' . $rowNum, $row['rujukan_id']);
+                $ws->setCellValue('E' . $rowNum, $row['location_id']);
+                $ws->setCellValue('F' . $rowNum, $row['nama_wilayah']);
+                $ws->setCellValue('G' . $rowNum, $row['rujukan_id']);
+                $ws->setCellValue('H' . $rowNum, $row['produsen_id']);
 
                 foreach ($periodCols as $pi => $colLabel) {
                     $value = $row['periods'][$colLabel] ?? null;
                     if ($value !== null) {
-                        $col = $this->colLetter(7 + $pi);
+                        $col = $this->colLetter($periodStartIndex + $pi);
                         $ws->setCellValue($col . $rowNum, $value);
                     }
                 }
@@ -540,22 +546,22 @@ class MetadataController extends Controller
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ]);
 
-            // Kolom D (location_id), E (nama_wilayah), F (rujukan_id)
-            $ws->getStyle("D4:F{$lastDataRow}")->applyFromArray([
+            // Kolom E-H berisi lokasi, rujukan, dan produsen yang dapat diisi.
+            $ws->getStyle("E4:H{$lastDataRow}")->applyFromArray([
                 'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
                 'font'      => ['size' => 9],
                 'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_HAIR, 'color' => ['rgb' => 'E2E8F0']]],
             ]);
-            $ws->getStyle("D4:D{$lastDataRow}")->applyFromArray([
+            $ws->getStyle("E4:E{$lastDataRow}")->applyFromArray([
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
-            $ws->getStyle("F4:F{$lastDataRow}")->applyFromArray([
+            $ws->getStyle("G4:H{$lastDataRow}")->applyFromArray([
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
 
-            // Kolom periode (G+) — style dasar untuk seluruh block sekaligus
+            // Kolom periode (I+) — style dasar untuk seluruh block sekaligus
             if (count($periodCols) > 0) {
-                $ws->getStyle("G4:{$lastColLetter}{$lastDataRow}")->applyFromArray([
+                $ws->getStyle("{$periodStartColumn}4:{$lastColLetter}{$lastDataRow}")->applyFromArray([
                     'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
                     'font'      => ['size' => 9],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -568,7 +574,7 @@ class MetadataController extends Controller
                         ? '#,##0.0' . str_repeat('0', $range['flag_desimal'])
                         : '#,##0';
 
-                    $ws->getStyle("G{$range['start']}:{$lastColLetter}{$range['end']}")
+                    $ws->getStyle("{$periodStartColumn}{$range['start']}:{$lastColLetter}{$range['end']}")
                         ->getNumberFormat()->setFormatCode($numFormat);
                 }
             }
@@ -581,14 +587,14 @@ class MetadataController extends Controller
                     ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($C_META_ALT);
 
                 if (count($periodCols) > 0) {
-                    $ws->getStyle("G{$rowNum}:{$lastColLetter}{$rowNum}")
+                    $ws->getStyle("{$periodStartColumn}{$rowNum}:{$lastColLetter}{$rowNum}")
                         ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($C_VAL_ALT);
                 }
             }
         }
 
         // ── Freeze & AutoFilter ───────────────────────────────────────────────
-        $ws->freezePane('G4');
+        $ws->freezePane($periodStartColumn . '4');
         $ws->setAutoFilter('A3:' . $lastColLetter . '3');
 
         $lastDataRow = max(count($excelRows) + 3, 4);

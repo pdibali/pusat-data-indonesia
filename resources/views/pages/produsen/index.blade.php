@@ -37,6 +37,10 @@
                 class="btn-primary text-xs">
             <i class="fas fa-search"></i> Cari
         </button>
+        <a href="{{ route('admin.produsen.export', request()->query()) }}"
+           class="btn-primary text-xs">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
         @if(request('search'))
             <a href="{{ route('admin.produsen.index') }}"
                class="bg-white/10 hover:bg-white/20 text-gray-400 text-xs px-4 py-2 rounded-lg transition">

@@ -66,6 +66,7 @@ class DataImport
     private array $existingSet  = [];
     private array $metadataCache = [];
     private array $rujukanCache  = [];
+    private array $produsenCache = [];
 
     private array $locationCache = []; // location_id => nama_wilayah
     private array $satuanCache   = [];   // lower(nama_satuan|simbol) => satuan_id
@@ -94,6 +95,7 @@ class DataImport
         $this->preloadLocationCache($dataRows, $columns['location_id']);
         $this->buildExistingSet($periodCols);
         $this->preloadRujukanCache($dataRows, $columns['rujukan_id']);
+        $this->preloadProdusenCache($dataRows, $columns['produsen_id']);
         $this->preloadSatuanCache();
         
     
@@ -275,6 +277,7 @@ class DataImport
         $this->preloadTimeCache($periodCols);
         $this->buildExistingSet($periodCols);
         $this->preloadRujukanCache($dataRows, $columns['rujukan_id']);
+        $this->preloadProdusenCache($dataRows, $columns['produsen_id']);
         $this->preloadSatuanCache();
         
 
@@ -950,6 +953,7 @@ class DataImport
             'location_id'     => $this->findColumnIndex($headerRow, ['location_id']) ?? self::COL_LOC_ID,
             'nama_wilayah'    => $this->findColumnIndex($headerRow, ['nama_wilayah']) ?? self::COL_LOC_NM,
             'rujukan_id'      => $this->findColumnIndex($headerRow, ['rujukan_id']),
+            'produsen_id'     => $this->findColumnIndex($headerRow, ['produsen_id']),
         ];
 
         // ── Kolom periode: mulai setelah kolom bernama TERTINGGI yang ditemukan,
@@ -1008,12 +1012,32 @@ class DataImport
         $rujukanId  = ($columns['rujukan_id'] !== null && isset($row[$columns['rujukan_id']]))
             ? (int) $row[$columns['rujukan_id']]
             : null;
+        $produsenRaw = $columns['produsen_id'] !== null
+            ? ($row[$columns['produsen_id']] ?? null)
+            : null;
+        $produsenId = $produsenRaw !== null && trim((string) $produsenRaw) !== ''
+            ? (int) $produsenRaw
+            : ($this->rujukanCache[$rujukanId]['produsen_id'] ?? null);
 
         // Validasi: jika ada rujukan_id tapi tidak ada di cache (tidak ditemukan di DB),
         // catat sebagai error dan skip seluruh baris.
         if ($rujukanId !== null && $rujukanId !== 0 && !isset($this->rujukanCache[$rujukanId])) {
             $errors[] = [
                 'message' => "Baris $rowNum: rujukan_id '$rujukanId' tidak ditemukan.",
+                'row'     => $rowNum,
+            ];
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+        }
+        if ($produsenId === null) {
+            $errors[] = [
+                'message' => "Baris $rowNum: produsen_id kosong atau tidak valid.",
+                'row'     => $rowNum,
+            ];
+            return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
+        }
+        if (!isset($this->produsenCache[$produsenId])) {
+            $errors[] = [
+                'message' => "Baris $rowNum: produsen_id '$produsenId' tidak ditemukan.",
                 'row'     => $rowNum,
             ];
             return compact('records', 'errors', 'invalid_metadata', 'invalid_satuan');
@@ -1181,7 +1205,8 @@ class DataImport
                 'period_label'        => (string) $periodLabel,
                 'rujukan_id'          => $rujukanId,
                 'nama_rujukan'        => $this->rujukanCache[$rujukanId]['nama'] ?? null,
-                'produsen_id'         => $this->rujukanCache[$rujukanId]['produsen_id'] ?? null,
+                'produsen_id'         => $produsenId,
+                'nama_produsen'       => $this->produsenCache[$produsenId]['nama'] ?? null,
                 'number_value'        => (float) $rawValue,
                 'satuan_id'           => $satuanId,
                 'satuan_asal_id'      => $satuanAsalId,
@@ -1224,6 +1249,34 @@ class DataImport
                 'nama'        => $r->nama_rujukan,
                 'produsen_id' => $r->produsen_id,
             ];
+        }
+    }
+
+    private function preloadProdusenCache(array $dataRows, ?int $produsenColIndex): void
+    {
+        $ids = [];
+        if ($produsenColIndex !== null) {
+            $ids = array_map(
+                fn($row) => isset($row[$produsenColIndex]) && trim((string) $row[$produsenColIndex]) !== ''
+                    ? (int) $row[$produsenColIndex]
+                    : null,
+                $dataRows
+            );
+        }
+
+        $ids = array_values(array_unique(array_filter(array_merge(
+            $ids,
+            array_map(fn($rujukan) => $rujukan['produsen_id'] ?? null, $this->rujukanCache)
+        ), fn($id) => $id !== null)));
+
+        if (empty($ids)) return;
+
+        $rows = DB::table('produsen_data')
+            ->whereIn('produsen_id', $ids)
+            ->get(['produsen_id', 'nama_produsen']);
+
+        foreach ($rows as $row) {
+            $this->produsenCache[$row->produsen_id] = ['nama' => $row->nama_produsen];
         }
     }
 

@@ -85,8 +85,14 @@
 
             <div class="flex justify-between items-start">
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800 mb-1">Input Data</h1>
+                    <h1 class="text-xl font-bold text-gray-800 mb-1">Kelola Data</h1>
                     <p class="text-sm text-gray-400 mb-6">Data akan menunggu verifikasi admin sebelum ditampilkan</p>
+                    <a href="{{ route('data.bulk_update') }}"
+                       class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white
+                              px-3 py-2 mb-4 rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                        <i class="fas fa-file-upload"></i>
+                        Bulk Update Data
+                    </a>
                 </div>
                 <div class="text-right text-sm text-gray-500">
                     <p id="current-date"></p>
@@ -333,7 +339,6 @@
                             Rujukan
                             <span id="satuanLabel" class="text-gray-400 font-normal text-xs ml-1"></span>
                         </label>
-                        <p class="mt-1 text-xs text-gray-400">Produsen akan terisi otomatis berdasarkan pilihan Rujukan jika tidak diisi manual.</p>
                         <select name="rujukan_id"  placeholder="Pilih rujukan..." autocomplete="off"
                                 class="tom-select w-full focus:outline-none focus:ring-2
                                     focus:ring-sky-400 text-xs">
@@ -345,15 +350,25 @@
                                 </option>
                             @endforeach
                         </select>
-                        {{-- Hidden: produsen_id otomatis dari rujukan --}}
-                        <input type="hidden" name="produsen_id" id="hiddenProdusenId">
-        
-                        {{-- Info produsen otomatis --}}
-                        <div id="produsenInfo" class="hidden mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-md text-xs text-emerald-700 flex items-center gap-2">
-                            <i class="fa-solid fa-industry text-emerald-500"></i>
-                            Produsen: <span id="produsenInfoText" class="font-semibold ml-1"></span>
-                            <span class="text-emerald-400 ml-1">(otomatis dari rujukan)</span>
-                        </div>
+                    </div>
+                    <div>
+                        <label for="selectProdusenId" class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Produsen
+                        </label>
+                        <select name="produsen_id" id="selectProdusenId" required
+                                class="w-full focus:outline-none focus:ring-2 focus:ring-sky-400 text-xs">
+                            <option value="">-- Pilih Produsen --</option>
+                            @foreach($produsenList as $produsen)
+                                <option value="{{ $produsen->produsen_id }}"
+                                    {{ old('produsen_id') == $produsen->produsen_id ? 'selected' : '' }}>
+                                    {{ $produsen->nama_produsen }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400">Pilihan produsen dapat disesuaikan setelah memilih rujukan.</p>
+                        @error('produsen_id')
+                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="flex justify-end pt-2">
@@ -948,6 +963,11 @@
     }
 
     initTomSelect('.tom-select'); 
+    new TomSelect('#selectProdusenId', {
+        allowEmptyOption: true,
+        create: false,
+        sortField: { field: 'text', direction: 'asc' }
+    });
 
     const PRODUSEN_URL = '{{ route("data.get_produsen_by_rujukan") }}';
 
@@ -971,13 +991,9 @@
     });
 
     async function onRujukanChange(value) {
-        const hidden  = document.getElementById('hiddenProdusenId');
-        const infoEl  = document.getElementById('produsenInfo');
-        const infoTxt = document.getElementById('produsenInfoText');
+        const produsenSelect = document.getElementById('selectProdusenId');
 
         if (!value) {
-            hidden.value = '';
-            infoEl.classList.add('hidden');
             return;
         }
 
@@ -988,16 +1004,10 @@
             const json = await resp.json();
 
             if (json.success) {
-                hidden.value      = json.produsen_id;
-                infoTxt.textContent = json.nama_produsen;
-                infoEl.classList.remove('hidden');
-            } else {
-                hidden.value = '';
-                infoEl.classList.add('hidden');
+                produsenSelect.tomselect.setValue(json.produsen_id ?? '', true);
             }
-        } catch (e) {
-            hidden.value = '';
-            infoEl.classList.add('hidden');
+        } catch (error) {
+            console.error('Gagal mengambil produsen dari rujukan.', error);
         }
     }
     

@@ -75,7 +75,6 @@
 
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">Rujukan <span class="text-red-500">*</span></label>
-                    <p class="mt-1 text-xs text-gray-400">Produsen akan terisi otomatis berdasarkan pilihan Rujukan jika tidak diisi manual.</p>
                     <select id="rujukan_id" name="rujukan_id" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" required>
                         <option value="">Pilih rujukan...</option>
                         @foreach($rujukanList as $rujukan)
@@ -84,13 +83,21 @@
                             </option>
                         @endforeach
                     </select>
-                    <input type="hidden" name="produsen_id" id="hiddenProdusenId" value="{{ old('produsen_id', $datum->produsen_id) }}">
-                    <div id="produsenInfo" class="{{ $datum->produsen ? '' : 'hidden' }} mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-md text-xs text-emerald-700 flex items-center gap-2">
-                        <i class="fa-solid fa-industry text-emerald-500"></i>
-                        Produsen: <span id="produsenInfoText" class="font-semibold ml-1">{{ $datum->produsen?->nama_produsen ?? '' }}</span>
-                        <span class="text-emerald-400 ml-1">(otomatis dari rujukan)</span>
-                    </div>
                     @error('rujukan_id')
+                        <p class="mt-1 text-xs text-red-500"><i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Produsen <span class="text-red-500">*</span></label>
+                    <select name="produsen_id" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" required>
+                        <option value="">Pilih produsen...</option>
+                        @foreach($produsenList as $produsen)
+                            <option value="{{ $produsen->produsen_id }}" {{ old('produsen_id', $datum->produsen_id) == $produsen->produsen_id ? 'selected' : '' }}>
+                                {{ $produsen->nama_produsen }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('produsen_id')
                         <p class="mt-1 text-xs text-red-500"><i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}</p>
                     @enderror
                 </div>
@@ -113,47 +120,4 @@
     </div>
 </div>
 
-<script>
-    const PRODUSEN_URL = '{{ route("data.get_produsen_by_rujukan") }}';
-    const CSRF = '{{ csrf_token() }}';
-
-    async function syncProdusenInfo(value) {
-        const hidden = document.getElementById('hiddenProdusenId');
-        const infoEl = document.getElementById('produsenInfo');
-        const infoTxt = document.getElementById('produsenInfoText');
-
-        if (!value) {
-            hidden.value = '';
-            infoEl.classList.add('hidden');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${PRODUSEN_URL}?rujukan_id=${value}`, {
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }
-            });
-            const json = await response.json();
-
-            if (json.success) {
-                hidden.value = json.produsen_id || '';
-                infoTxt.textContent = json.nama_produsen || '-';
-                infoEl.classList.remove('hidden');
-            } else {
-                hidden.value = '';
-                infoEl.classList.add('hidden');
-            }
-        } catch (e) {
-            hidden.value = '';
-            infoEl.classList.add('hidden');
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const rujukanSelect = document.getElementById('rujukan_id');
-        if (rujukanSelect) {
-            rujukanSelect.addEventListener('change', (event) => syncProdusenInfo(event.target.value));
-            syncProdusenInfo(rujukanSelect.value);
-        }
-    });
-</script>
 @endsection

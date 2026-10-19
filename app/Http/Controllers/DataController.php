@@ -2,32 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Data;
-use App\Models\Metadata;
-use App\Models\Rujukan;
-use App\Models\Location;
-use App\Models\Waktu;
-use App\Models\Tampilan;
-use App\Models\IsiTampilan;
 use App\Imports\DataImport;
+use App\Models\Data;
+use App\Models\IsiTampilan;
+use App\Models\Location;
+use App\Models\Metadata;
+use App\Models\ProdusenData;
+use App\Models\Rujukan;
+use App\Models\Tampilan;
+use App\Models\Waktu;
 use App\Services\AnomalyDetectionService;
 use App\Services\AuditTrailService;
-use App\Services\SubscriptionLimitsService;
+use App\Services\DataBulkUpdateService;
 use App\Services\SubscriptionAccessService;
+use App\Services\SubscriptionLimitsService;
 use App\Services\WorkflowService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class DataController extends Controller
 {
     const STATUS_AVAILABLE = 1;
-    const STATUS_PENDING   = 0;
+
+    const STATUS_PENDING = 0;
 
     public function __construct(
         private readonly AnomalyDetectionService $detector,
-        private readonly AuditTrailService       $auditTrail,
-        private readonly WorkflowService         $workflow,
+        private readonly AuditTrailService $auditTrail,
+        private readonly WorkflowService $workflow,
     ) {}
 
     // ═══════════════════════════════════════════════════════════
@@ -37,7 +43,7 @@ class DataController extends Controller
     public function index(Request $request)
     {
         $hasFilter = $request->hasAny([
-            'metadata_id', 'filter_wilayah_id', 'year', 'search', 'template_id'
+            'metadata_id', 'filter_wilayah_id', 'year', 'search', 'template_id',
         ]);
 
         // ── template_id: hanya proses kalau login ────────────────
@@ -49,9 +55,9 @@ class DataController extends Controller
             if ($tampilan && $tampilan->filter_params) {
                 $fp = $tampilan->filter_params;
                 $request->merge(array_filter([
-                    'metadata_id'       => $fp['metadata_id']       ?? null,
+                    'metadata_id' => $fp['metadata_id'] ?? null,
                     'filter_wilayah_id' => $fp['filter_wilayah_id'] ?? null,
-                    'year'              => $fp['year']               ?? null,
+                    'year' => $fp['year'] ?? null,
                 ]));
             }
         }
@@ -68,12 +74,11 @@ class DataController extends Controller
                 $query->where('location_id', $request->filter_wilayah_id);
             }
             if ($request->filled('year')) {
-                $query->whereHas('time', fn($q) => $q->where('year', $request->year));
+                $query->whereHas('time', fn ($q) => $q->where('year', $request->year));
             }
             if ($request->filled('search')) {
                 $s = $request->search;
-                $query->where(fn($q) =>
-                    $q->whereHas('metadata', fn($m) => $m->where('nama', 'like', "%$s%"))
+                $query->where(fn ($q) => $q->whereHas('metadata', fn ($m) => $m->where('nama', 'like', "%$s%"))
                     ->orWhere('text_value', 'like', "%$s%")
                 );
             }
@@ -82,8 +87,8 @@ class DataController extends Controller
         }
 
         $activeTemplateId = (int) $request->input('template_id', 0);
-        $metadataList     = Metadata::where('status', 2)->orderBy('nama')->get(['metadata_id', 'nama']);
-        $wilayahList      = Location::select('nama_wilayah')->distinct()->orderBy('nama_wilayah')->pluck('nama_wilayah');
+        $metadataList = Metadata::where('status', 2)->orderBy('nama')->get(['metadata_id', 'nama']);
+        $wilayahList = Location::select('nama_wilayah')->distinct()->orderBy('nama_wilayah')->pluck('nama_wilayah');
 
         // ── availableTemplates: kosong kalau guest ────────────────
         $availableTemplates = Auth::check()
@@ -141,16 +146,19 @@ class DataController extends Controller
     {
         $q = $request->input('q', '');
         $query = Location::select('location_id', 'nama_wilayah')->orderBy('nama_wilayah');
-        if ($q !== '') $query->where('nama_wilayah', 'like', "%{$q}%");
+        if ($q !== '') {
+            $query->where('nama_wilayah', 'like', "%{$q}%");
+        }
 
         return response()->json(
-            $query->get()->map(fn($loc) => ['id' => $loc->location_id, 'path' => $loc->nama_wilayah])
+            $query->get()->map(fn ($loc) => ['id' => $loc->location_id, 'path' => $loc->nama_wilayah])
         );
     }
 
     public function getKecamatan(Request $request)
     {
         $request->validate(['kabupaten' => 'required|string']);
+
         return response()->json(
             Location::where('kabupaten', $request->kabupaten)
                 ->select('kecamatan')->distinct()->orderBy('kecamatan')->pluck('kecamatan')
@@ -160,6 +168,7 @@ class DataController extends Controller
     public function getDesa(Request $request)
     {
         $request->validate(['kecamatan' => 'required|string']);
+
         return response()->json(
             Location::where('kecamatan', $request->kecamatan)
                 ->select('desa')->distinct()->orderBy('desa')->pluck('desa')
@@ -168,19 +177,21 @@ class DataController extends Controller
 
     public function searchMetadata(Request $request)
     {
-        $q     = $request->input('q', '');
+        $q = $request->input('q', '');
         $limit = $q === '' ? 200 : 30;
         $query = Metadata::with('klasifikasi')->where('status', 2)->orderBy('nama');
-        if ($q !== '') $query->where('nama', 'like', "%{$q}%");
+        if ($q !== '') {
+            $query->where('nama', 'like', "%{$q}%");
+        }
 
         return response()->json(
             $query->limit($limit)->get(['metadata_id', 'nama', 'klasifikasi_id', 'satuan_data'])
-                ->map(fn($item) => [
-                    'metadata_id'    => $item->metadata_id,
-                    'nama'           => $item->nama,
-                    'satuan_data'    => $item->satuan_data,
+                ->map(fn ($item) => [
+                    'metadata_id' => $item->metadata_id,
+                    'nama' => $item->nama,
+                    'satuan_data' => $item->satuan_data,
                     'klasifikasi_id' => $item->klasifikasi_id,
-                    'klasifikasi'    => $item->klasifikasi?->nama_klasifikasi,
+                    'klasifikasi' => $item->klasifikasi?->nama_klasifikasi,
                 ])
         );
     }
@@ -189,16 +200,26 @@ class DataController extends Controller
     {
         $q = $request->input('q', '');
         $query = Waktu::select('year')->distinct();
-        if ($q !== '') $query->where('year', 'like', "{$q}%");
+        if ($q !== '') {
+            $query->where('year', 'like', "{$q}%");
+        }
+
         return response()->json($query->orderByDesc('year')->pluck('year'));
     }
 
     private static function detectLocationLevel(string $nama): string
     {
         $lower = strtolower($nama);
-        if (str_contains($lower, 'provinsi'))                                   return 'provinsi';
-        if (str_contains($lower, 'kabupaten') || str_contains($lower, 'kota')) return 'kabupaten';
-        if (str_contains($lower, 'kecamatan'))                                  return 'kecamatan';
+        if (str_contains($lower, 'provinsi')) {
+            return 'provinsi';
+        }
+        if (str_contains($lower, 'kabupaten') || str_contains($lower, 'kota')) {
+            return 'kabupaten';
+        }
+        if (str_contains($lower, 'kecamatan')) {
+            return 'kecamatan';
+        }
+
         return 'desa';
     }
 
@@ -209,13 +230,13 @@ class DataController extends Controller
             ->where('rujukan_id', $request->rujukan_id)
             ->first();
 
-        if (!$rujukan) {
+        if (! $rujukan) {
             return response()->json(['success' => false, 'message' => 'Rujukan tidak ditemukan'], 404);
         }
 
         return response()->json([
-            'success'       => true,
-            'produsen_id'   => $rujukan->produsen_id,
+            'success' => true,
+            'produsen_id' => $rujukan->produsen_id,
             'nama_produsen' => $rujukan->produsen?->nama_produsen ?? '-',
         ]);
     }
@@ -230,39 +251,38 @@ class DataController extends Controller
             'metadata_id', 'nama', 'tipe_data', 'satuan_data', 'frekuensi_penerbitan', 'flag_desimal'
         )->where('status', 2)->orderBy('nama')->get();
 
-        $rujukanList  = Rujukan::select('rujukan_id', 'nama_rujukan')->orderBy('nama_rujukan')->get();
+        $rujukanList = Rujukan::select('rujukan_id', 'nama_rujukan')->orderBy('nama_rujukan')->get();
+        $produsenList = ProdusenData::select('produsen_id', 'nama_produsen')->orderBy('nama_produsen')->get();
         $locationList = Location::select('location_id', 'nama_wilayah')->orderBy('nama_wilayah')->get();
 
-        $provinsiList  = $locationList->filter(fn($l) => str_contains(strtolower($l->nama_wilayah), 'provinsi'));
-        $kabupatenList = $locationList->filter(fn($l) =>
-            str_contains(strtolower($l->nama_wilayah), 'kabupaten') ||
+        $provinsiList = $locationList->filter(fn ($l) => str_contains(strtolower($l->nama_wilayah), 'provinsi'));
+        $kabupatenList = $locationList->filter(fn ($l) => str_contains(strtolower($l->nama_wilayah), 'kabupaten') ||
             str_contains(strtolower($l->nama_wilayah), 'kota')
         );
-        $kecamatanList = $locationList->filter(fn($l) => str_contains(strtolower($l->nama_wilayah), 'kecamatan'));
-        $desaList      = $locationList->filter(fn($l) =>
-            !str_contains(strtolower($l->nama_wilayah), 'provinsi') &&
-            !str_contains(strtolower($l->nama_wilayah), 'kabupaten') &&
-            !str_contains(strtolower($l->nama_wilayah), 'kota') &&
-            !str_contains(strtolower($l->nama_wilayah), 'kecamatan')
+        $kecamatanList = $locationList->filter(fn ($l) => str_contains(strtolower($l->nama_wilayah), 'kecamatan'));
+        $desaList = $locationList->filter(fn ($l) => ! str_contains(strtolower($l->nama_wilayah), 'provinsi') &&
+            ! str_contains(strtolower($l->nama_wilayah), 'kabupaten') &&
+            ! str_contains(strtolower($l->nama_wilayah), 'kota') &&
+            ! str_contains(strtolower($l->nama_wilayah), 'kecamatan')
         );
 
         $timeList = Waktu::select('time_id', 'decade', 'year', 'semester', 'quarter', 'month')
             ->orderBy('decade', 'desc')->orderBy('year', 'desc')->orderBy('month')->get();
 
-        $timeListJs = $timeList->map(fn($t) => [
-            'time_id'  => $t->time_id, 'decade'   => $t->decade,
-            'year'     => $t->year,    'semester' => $t->semester,
-            'quarter'  => $t->quarter, 'month'    => $t->month,
+        $timeListJs = $timeList->map(fn ($t) => [
+            'time_id' => $t->time_id, 'decade' => $t->decade,
+            'year' => $t->year,    'semester' => $t->semester,
+            'quarter' => $t->quarter, 'month' => $t->month,
         ])->values()->toArray();
 
-        $locationListJs = $locationList->map(fn($l) => [
-            'location_id'  => (string) $l->location_id,
+        $locationListJs = $locationList->map(fn ($l) => [
+            'location_id' => (string) $l->location_id,
             'nama_wilayah' => $l->nama_wilayah,
-            'level'        => self::detectLocationLevel($l->nama_wilayah),
+            'level' => self::detectLocationLevel($l->nama_wilayah),
         ])->values()->toArray();
 
         return view('pages.data.create', compact(
-            'metadataList', 'rujukanList', 'locationList',
+            'metadataList', 'rujukanList', 'produsenList', 'locationList',
             'provinsiList', 'kabupatenList', 'kecamatanList', 'desaList',
             'timeList', 'timeListJs', 'locationListJs'
         ));
@@ -285,24 +305,25 @@ class DataController extends Controller
         // Validasi metadata aktif
         $metadata = Metadata::where('metadata_id', $request->metadata_id)
             ->where('status', 2)->first();
-        if (!$metadata) {
+        if (! $metadata) {
             return back()->withInput()->withErrors([
                 'metadata_id' => 'Metadata tidak aktif atau tidak valid.',
             ]);
         }
 
         // Validasi rujukan
-        if (!Rujukan::where('rujukan_id', $request->rujukan_id)->exists()) {
+        if (! Rujukan::where('rujukan_id', $request->rujukan_id)->exists()) {
             return back()->withInput()->withErrors([
                 'rujukan_id' => 'Rujukan tidak tersedia.',
             ]);
         }
 
         $request->validate([
-            'metadata_id'  => 'required|integer|exists:metadata,metadata_id',
-            'location_id'  => 'required|integer|exists:location,location_id',
-            'time_id'      => 'required|integer|exists:time,time_id',
-            'rujukan_id'   => 'required|integer|exists:rujukan,rujukan_id',
+            'metadata_id' => 'required|integer|exists:metadata,metadata_id',
+            'location_id' => 'required|integer|exists:location,location_id',
+            'time_id' => 'required|integer|exists:time,time_id',
+            'rujukan_id' => 'required|integer|exists:rujukan,rujukan_id',
+            'produsen_id' => 'required|integer|exists:produsen_data,produsen_id',
             'number_value' => 'nullable|numeric',
         ]);
 
@@ -315,35 +336,31 @@ class DataController extends Controller
 
         if ($duplicate) {
             return redirect()->back()->withInput()->with('duplicate_warning', [
-                'message'         => 'Data dengan kombinasi Metadata, Lokasi, dan Waktu yang sama sudah terdaftar.',
-                'existing_id'     => $duplicate->id,
+                'message' => 'Data dengan kombinasi Metadata, Lokasi, dan Waktu yang sama sudah terdaftar.',
+                'existing_id' => $duplicate->id,
                 'existing_status' => $duplicate->status_label,
             ]);
         }
 
         // ── Simpan data ───────────────────────────────────────
-        // Resolve produsen_id from rujukan if not provided explicitly
-        $rujukan = Rujukan::where('rujukan_id', $request->rujukan_id)->first();
-        $produsenFromRujukan = $rujukan?->produsen_id ?? null;
-
         $data = Data::create([
-            'user_id'         => Auth::user()->user_id,
-            'metadata_id'     => $request->metadata_id,
-            'location_id'     => $request->location_id,
-            'time_id'         => $request->time_id,
-            'rujukan_id'      => $request->rujukan_id,
-            'produsen_id'     => $request->filled('produsen_id') ? $request->produsen_id : $produsenFromRujukan,
-            'number_value'    => $request->number_value,
-            'status'          => Data::STATUS_PENDING,
+            'user_id' => Auth::user()->user_id,
+            'metadata_id' => $request->metadata_id,
+            'location_id' => $request->location_id,
+            'time_id' => $request->time_id,
+            'rujukan_id' => $request->rujukan_id,
+            'produsen_id' => $request->produsen_id,
+            'number_value' => $request->number_value,
+            'status' => Data::STATUS_PENDING,
             'workflow_status' => Data::WORKFLOW_DRAFT,
-            'date_inputed'    => Carbon::now(),
+            'date_inputed' => Carbon::now(),
         ]);
 
         // ── Audit trail: data dibuat ──────────────────────────
         $this->auditTrail->recordCreated('data', $data->id, [
-            'metadata_id'  => $data->metadata_id,
-            'location_id'  => $data->location_id,
-            'time_id'      => $data->time_id,
+            'metadata_id' => $data->metadata_id,
+            'location_id' => $data->location_id,
+            'time_id' => $data->time_id,
             'number_value' => $data->number_value,
         ]);
 
@@ -356,7 +373,7 @@ class DataController extends Controller
 
         // ── Redirect dengan feedback ──────────────────────────
         if ($screenResult && $screenResult['anomalies_found']) {
-            $count    = count($screenResult['anomalies']);
+            $count = count($screenResult['anomalies']);
             $severities = collect($screenResult['anomalies'])
                 ->pluck('severity')
                 ->unique()
@@ -382,22 +399,22 @@ class DataController extends Controller
             'file_excel' => 'required|file|mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/octet-stream,application/zip|max:10240',
         ], [
             'file_excel.required' => 'File Excel wajib diupload.',
-            'file_excel.mimes'    => 'File harus berformat .xlsx atau .xls.',
-            'file_excel.max'      => 'Ukuran file maksimal 10MB.',
+            'file_excel.mimes' => 'File harus berformat .xlsx atau .xls.',
+            'file_excel.max' => 'Ukuran file maksimal 10MB.',
         ]);
- 
+
         try {
-            $path   = $request->file('file_excel')->getRealPath();
-            $import = new DataImport();
+            $path = $request->file('file_excel')->getRealPath();
+            $import = new DataImport;
             $result = $import->preview($path);
- 
+
             // result sudah mengandung 'outliers' dan 'outlier_count' dari DataImport
             return response()->json($result);
- 
+
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membaca file Excel: ' . $e->getMessage(),
+                'message' => 'Gagal membaca file Excel: '.$e->getMessage(),
             ], 422);
         }
     }
@@ -409,21 +426,21 @@ class DataController extends Controller
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file_excel'      => 'required|file|mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/octet-stream,application/zip|max:10240',
+            'file_excel' => 'required|file|mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/octet-stream,application/zip|max:10240',
             'skip_duplicates' => 'nullable|boolean',
             // excluded_keys: array of record keys yang user pilih untuk TIDAK diimport
-            'excluded_keys'   => 'nullable|array',
+            'excluded_keys' => 'nullable|array',
             'excluded_keys.*' => 'string',
-            'anomaly_keys'    => 'nullable|array',
-            'unit_conflict_keys'   => 'nullable|array',
+            'anomaly_keys' => 'nullable|array',
+            'unit_conflict_keys' => 'nullable|array',
             'unit_conflict_keys.*' => 'string',
-            'satuan_resolutions'   => 'nullable|array',
+            'satuan_resolutions' => 'nullable|array',
             'satuan_resolutions.*' => 'integer',
         ]);
- 
+
         try {
             $path = $request->file('file_excel')->getRealPath();
- 
+
             // Bangun set key yang dikecualikan dari pilihan user di UI
             $excludedKeys = [];
             foreach ($request->input('excluded_keys', []) as $key) {
@@ -439,12 +456,12 @@ class DataController extends Controller
             foreach ($request->input('anomaly_keys', []) as $key) {
                 $anomalyKeys[$key] = true;
             }
- 
+
             $import = new DataImport(
-                userId:         Auth::user()->user_id,
+                userId: Auth::user()->user_id,
                 skipDuplicates: $request->boolean('skip_duplicates', true)
             );
- 
+
             $result = $import->import($path, $excludedKeys, $anomalyKeys, $unitConflictKeys);
 
             if (isset($result['success']) && $result['success'] === false) {
@@ -476,34 +493,85 @@ class DataController extends Controller
             if ($anomalyStats['anomaliesFound'] > 0) {
                 $message .= " {$anomalyStats['anomaliesFound']} anomali terdeteksi — silakan cek halaman Control.";
             }
- 
+
             $totalAnomalyCount = $manualAnomalyCount + $anomalyStats['anomaliesFound'];
             $redirectToAnomaly = $totalAnomalyCount > 0;
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'success'       => true,
-                    'message'       => $message,
+                    'success' => true,
+                    'message' => $message,
                     'anomaly_count' => $totalAnomalyCount,
-                    'redirect'      => $redirectToAnomaly
+                    'redirect' => $redirectToAnomaly
                         ? route('anomaly.control.index')
                         : route('data.index'),
                 ]);
             }
- 
+
             return $redirectToAnomaly
                 ? redirect()->route('anomaly.control.index')->with('warning', $message)
                 : redirect()->route('data.index')->with('success', $message);
- 
+
         } catch (\Throwable $e) {
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mengimpor data: ' . $e->getMessage(),
+                    'message' => 'Gagal mengimpor data: '.$e->getMessage(),
                 ], 500);
             }
-            return redirect()->back()->withErrors(['file_excel' => 'Gagal mengimpor: ' . $e->getMessage()]);
+
+            return redirect()->back()->withErrors(['file_excel' => 'Gagal mengimpor: '.$e->getMessage()]);
         }
+    }
+
+    public function bulkUpdate()
+    {
+        return view('pages.data.bulk-update');
+    }
+
+    public function previewBulkUpdate(Request $request, DataBulkUpdateService $bulkUpdate)
+    {
+        $request->validate([
+            'file_excel' => 'required|file|mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/octet-stream,application/zip|max:10240',
+        ], [
+            'file_excel.required' => 'File Excel wajib diunggah.',
+            'file_excel.max' => 'Ukuran file maksimal 10MB.',
+        ]);
+
+        $preview = $bulkUpdate->preview($request->file('file_excel')->getRealPath());
+        $token = (string) Str::uuid();
+        Cache::put(
+            $this->bulkUpdateCacheKey($token),
+            $preview['changes'],
+            now()->addMinutes(20),
+        );
+
+        return view('pages.data.bulk-update', compact('preview', 'token'));
+    }
+
+    public function applyBulkUpdate(Request $request, DataBulkUpdateService $bulkUpdate)
+    {
+        $validated = $request->validate([
+            'token' => 'required|uuid',
+        ]);
+        $cacheKey = $this->bulkUpdateCacheKey($validated['token']);
+        $changes = Cache::get($cacheKey);
+
+        if ($changes === null) {
+            return redirect()->route('data.bulk_update')
+                ->withErrors(['token' => 'Pratinjau sudah kedaluwarsa atau tidak ditemukan. Silakan unggah ulang file.']);
+        }
+
+        $updatedCount = $bulkUpdate->apply($changes, (int) Auth::user()->user_id);
+        Cache::forget($cacheKey);
+
+        return redirect()->route('data.bulk_update')
+            ->with('success', "{$updatedCount} data berhasil diperbarui. Data dikembalikan ke status menunggu verifikasi.");
+    }
+
+    private function bulkUpdateCacheKey(string $token): string
+    {
+        return 'data_bulk_update:'.Auth::user()->user_id.':'.$token;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -512,22 +580,30 @@ class DataController extends Controller
 
     public function downloadTemplateExcel()
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet       = $spreadsheet->getActiveSheet();
-        $headers     = [
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = [
             'A1' => 'metadata_id', 'B1' => 'location_id',
-            'C1' => 'time_id',     'D1' => 'number_value', 'E1' => 'rujukan_id',
+            'C1' => 'time_id',     'D1' => 'number_value',
+            'E1' => 'rujukan_id',  'F1' => 'produsen_id',
         ];
-        foreach ($headers as $cell => $val) $sheet->setCellValue($cell, $val);
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        foreach ($headers as $cell => $val) {
+            $sheet->setCellValue($cell, $val);
+        }
+        $sheet->getStyle('A1:F1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '0284C7']],
             'alignment' => ['horizontal' => 'center'],
         ]);
-        $sheet->setCellValue('A2', 1); $sheet->setCellValue('B2', 1);
-        $sheet->setCellValue('C2', 1); $sheet->setCellValue('D2', 100.50);
+        $sheet->setCellValue('A2', 1);
+        $sheet->setCellValue('B2', 1);
+        $sheet->setCellValue('C2', 1);
+        $sheet->setCellValue('D2', 100.50);
         $sheet->setCellValue('E2', 1);
-        foreach (range('A', 'E') as $col) $sheet->getColumnDimension($col)->setAutoSize(true);
+        $sheet->setCellValue('F2', 1);
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
         $sheet->setTitle('Template Data');
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
@@ -548,12 +624,19 @@ class DataController extends Controller
         if ($request->filled('metadata_id')) {
             $query->where('metadata_id', $request->metadata_id);
         }
+        if ($request->filled('filter_rujukan')) {
+            $query->where('rujukan_id', $request->filter_rujukan);
+        }
+        if ($request->filled('filter_produsen')) {
+            $v = $request->filter_produsen;
+            $query->whereHas('produsen', fn ($q) => $q->where('nama_produsen', 'like', "%{$v}%"));
+        }
         if ($request->filled('filter_lokasi')) {
             $v = $request->filter_lokasi;
-            $query->whereHas('location', fn($q) => $q->where('nama_wilayah', 'like', "%{$v}%"));
+            $query->whereHas('location', fn ($q) => $q->where('nama_wilayah', 'like', "%{$v}%"));
         }
-        if ($request->filled('filter_tahun')) {
-            $query->whereHas('time', fn($q) => $q->where('year', $request->filter_tahun));
+        if ($request->filled('filter_tahun') && $request->input('filter_granularitas') !== 'dekade') {
+            $query->whereHas('time', fn ($q) => $q->where('year', $request->filter_tahun));
         }
         if ($request->filled('filter_nilai_min')) {
             $query->where('number_value', '>=', $request->filter_nilai_min);
@@ -563,7 +646,7 @@ class DataController extends Controller
         }
         if ($request->filled('filter_user')) {
             $v = $request->filter_user;
-            $query->whereHas('user', fn($q) => $q->where('name', 'like', "%{$v}%"));
+            $query->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$v}%"));
         }
         if ($request->filled('filter_tanggal_dari')) {
             $query->whereDate('date_inputed', '>=', $request->filter_tanggal_dari);
@@ -574,45 +657,63 @@ class DataController extends Controller
 
         if ($request->filled('filter_granularitas')) {
             $g = $request->filter_granularitas;
-            $query->whereHas('time', function ($q) use ($g, $request) {
+            $supportsDailyPeriods = Schema::hasColumn('time', 'day');
+            $query->whereHas('time', function ($q) use ($g, $request, $supportsDailyPeriods) {
                 switch ($g) {
                     case 'dekade':
-                        $q->where('day', 0)->where('month', 0)->where('quarter', 0)
-                        ->where('semester', 0)->where('year', 0);
+                        $q->where('month', 0)->where('quarter', 0)
+                            ->where('semester', 0)->where('year', 0);
+                        if ($supportsDailyPeriods) {
+                            $q->where('day', 0);
+                        }
                         if ($request->filled('filter_dekade')) {
                             $q->where('decade', $request->filter_dekade);
                         }
                         break;
 
                     case 'tahunan':
-                        $q->where('day', 0)->where('month', 0)->where('quarter', 0)
-                        ->where('semester', 0)->where('year', '!=', 0);
+                        $q->where('month', 0)->where('quarter', 0)
+                            ->where('semester', 0)->where('year', '!=', 0);
+                        if ($supportsDailyPeriods) {
+                            $q->where('day', 0);
+                        }
                         break;
 
                     case 'semester':
-                        $q->where('day', 0)->where('month', 0)->where('quarter', 0)
-                        ->where('semester', '!=', 0);
+                        $q->where('month', 0)->where('quarter', 0)
+                            ->where('semester', '!=', 0);
+                        if ($supportsDailyPeriods) {
+                            $q->where('day', 0);
+                        }
                         if ($request->filled('filter_sub_periode')) {
                             $q->where('semester', $request->filter_sub_periode);
                         }
                         break;
 
                     case 'quarter':
-                        $q->where('day', 0)->where('month', 0)->where('quarter', '!=', 0);
+                        $q->where('month', 0)->where('quarter', '!=', 0)
+                            ->where('semester', 0);
+                        if ($supportsDailyPeriods) {
+                            $q->where('day', 0);
+                        }
                         if ($request->filled('filter_sub_periode')) {
                             $q->where('quarter', $request->filter_sub_periode);
                         }
                         break;
 
                     case 'bulanan':
-                        $q->where('day', 0)->where('month', '!=', 0);
+                        $q->where('month', '!=', 0)
+                            ->where('quarter', 0)->where('semester', 0);
+                        if ($supportsDailyPeriods) {
+                            $q->where('day', 0);
+                        }
                         if ($request->filled('filter_sub_periode')) {
                             $q->where('month', $request->filter_sub_periode);
                         }
                         break;
 
                     case 'tanggal':
-                        $q->where('day', '!=', 0);
+                        $q->where('day', '!=', 0)->where('month', '!=', 0);
                         break;
                 }
             });
@@ -620,7 +721,7 @@ class DataController extends Controller
 
         if ($request->filled('filter_tanggal_lengkap')) {
             $date = \Carbon\Carbon::parse($request->filter_tanggal_lengkap);
-            $query->whereHas('time', fn($q) => $q
+            $query->whereHas('time', fn ($q) => $q
                 ->where('year', $date->year)
                 ->where('month', $date->month)
                 ->where('day', $date->day));
@@ -629,27 +730,66 @@ class DataController extends Controller
         return $query;
     }
 
+    private function validateApprovalFilters(Request $request): void
+    {
+        $granularities = ['dekade', 'tahunan', 'semester', 'quarter', 'bulanan'];
+        if (Schema::hasColumn('time', 'day')) {
+            $granularities[] = 'tanggal';
+        }
+
+        $request->validate([
+            'metadata_id' => ['nullable', 'integer'],
+            'filter_rujukan' => ['nullable', 'integer'],
+            'filter_produsen' => ['nullable', 'string', 'max:255'],
+            'filter_lokasi' => ['nullable', 'string', 'max:255'],
+            'filter_tahun' => ['nullable', 'integer'],
+            'filter_nilai_min' => ['nullable', 'numeric'],
+            'filter_nilai_max' => ['nullable', 'numeric'],
+            'filter_user' => ['nullable', 'string', 'max:255'],
+            'filter_tanggal_dari' => ['nullable', 'date_format:Y-m-d'],
+            'filter_tanggal_sampai' => ['nullable', 'date_format:Y-m-d'],
+            'filter_granularitas' => ['nullable', 'in:'.implode(',', $granularities)],
+            'filter_sub_periode' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'filter_dekade' => ['nullable', 'integer'],
+            'filter_tanggal_lengkap' => [
+                'nullable',
+                ... (Schema::hasColumn('time', 'day') ? ['date_format:Y-m-d'] : ['prohibited']),
+            ],
+        ]);
+    }
+
     public function approval(Request $request)
     {
-        $status = $request->input('status', 0);
-        $query  = Data::with(['metadata', 'location', 'time', 'user', 'latestAnomaly'])
+        $this->validateApprovalFilters($request);
+        $request->validate(['status' => ['nullable', 'in:0,1,2']]);
+
+        $status = $request->input('status', Data::STATUS_PENDING);
+        $query = Data::with(['metadata', 'location', 'time', 'user', 'latestAnomaly', 'rujukan'])
             ->where('status', $status);
 
         $this->applyApprovalFilters($query, $request);
 
-        $data          = $query->orderBy('date_inputed', 'desc')->paginate(20)->withQueryString();
-        $metadataList  = Metadata::select('metadata_id', 'nama')->orderBy('nama')->get();
-        $pendingCount  = Data::where('status', Data::STATUS_PENDING)->count();
+        $data = $query->orderBy('date_inputed', 'desc')->paginate(20)->withQueryString();
+        $metadataList = Metadata::select('metadata_id', 'nama')->orderBy('nama')->get();
+        $rujukanList = Rujukan::select('rujukan_id', 'nama_rujukan')->orderBy('nama_rujukan')->get();
+        $supportsDailyPeriods = Schema::hasColumn('time', 'day');
+        $pendingCount = Data::where('status', Data::STATUS_PENDING)->count();
+        $filteredPendingCount = $this->applyApprovalFilters(
+            Data::where('status', Data::STATUS_PENDING),
+            $request
+        )->count();
         $approvedCount = Data::where('status', Data::STATUS_AVAILABLE)->count();
         $rejectedCount = Data::where('status', Data::STATUS_REJECTED)->count();
 
         return view('pages.data.approval', compact(
-            'data', 'metadataList', 'pendingCount', 'approvedCount', 'rejectedCount'
-        ));
+            'data', 'metadataList', 'rujukanList', 'supportsDailyPeriods',
+            'pendingCount', 'approvedCount', 'rejectedCount'
+        ))->with('filteredPendingCount', $filteredPendingCount);
     }
 
     public function bulkApprove(Request $request)
     {
+        $this->validateApprovalFilters($request);
         $validated = $request->validate([
             'mode' => 'required|in:all,safe',
         ]);
@@ -666,7 +806,7 @@ class DataController extends Controller
         }
 
         $dataItems = $query->get();
-        $count     = 0;
+        $count = 0;
 
         foreach ($dataItems as $item) {
             $this->workflow->approveData($item);
@@ -675,7 +815,8 @@ class DataController extends Controller
 
         return redirect()
             ->route('data.approval', $request->only([
-                'metadata_id', 'filter_lokasi', 'filter_tahun', 'filter_granularitas',
+                'metadata_id', 'filter_rujukan', 'filter_produsen',
+                'filter_lokasi', 'filter_tahun', 'filter_granularitas',
                 'filter_sub_periode', 'filter_dekade', 'filter_tanggal_lengkap',
                 'filter_nilai_min', 'filter_nilai_max', 'filter_user',
                 'filter_tanggal_dari', 'filter_tanggal_sampai',
@@ -686,6 +827,7 @@ class DataController extends Controller
     public function approve(Data $datum)
     {
         $this->workflow->approveData($datum);
+
         return redirect()->back()->with('success',
             "Data #{$datum->id} dari metadata {$datum->metadata->nama} berhasil diverifikasi."
         );
@@ -695,6 +837,7 @@ class DataController extends Controller
     {
         $reason = request('reason', 'Ditolak oleh administrator.');
         $this->workflow->rejectData($datum, $reason);
+
         return redirect()->back()->with('success',
             "Data #{$datum->id} dari metadata {$datum->metadata->nama} ditolak."
         );
@@ -712,37 +855,35 @@ class DataController extends Controller
             'metadata_id', 'nama', 'tipe_data', 'satuan_data', 'frekuensi_penerbitan', 'flag_desimal'
         )->where('status', 2)->orderBy('nama')->get();
 
-        $rujukanList  = Rujukan::select('rujukan_id', 'nama_rujukan')->orderBy('nama_rujukan')->get();
+        $rujukanList = Rujukan::select('rujukan_id', 'nama_rujukan')->orderBy('nama_rujukan')->get();
+        $produsenList = ProdusenData::select('produsen_id', 'nama_produsen')->orderBy('nama_produsen')->get();
         $locationList = Location::select('location_id', 'nama_wilayah')->orderBy('nama_wilayah')->get();
         $timeList = Waktu::select('time_id', 'decade', 'year', 'semester', 'quarter', 'month')
             ->orderBy('decade', 'desc')->orderBy('year', 'desc')->orderBy('month')->get();
 
-        return view('pages.data.edit', compact('datum', 'metadataList', 'rujukanList', 'locationList', 'timeList'));
+        return view('pages.data.edit', compact('datum', 'metadataList', 'rujukanList', 'produsenList', 'locationList', 'timeList'));
     }
 
     public function update(Request $request, Data $datum)
     {
         $request->validate([
-            'metadata_id'  => 'required|integer|exists:metadata,metadata_id',
-            'location_id'  => 'required|integer|exists:location,location_id',
-            'time_id'      => 'required|integer|exists:time,time_id',
-            'rujukan_id'   => 'required|integer|exists:rujukan,rujukan_id',
+            'metadata_id' => 'required|integer|exists:metadata,metadata_id',
+            'location_id' => 'required|integer|exists:location,location_id',
+            'time_id' => 'required|integer|exists:time,time_id',
+            'rujukan_id' => 'required|integer|exists:rujukan,rujukan_id',
+            'produsen_id' => 'required|integer|exists:produsen_data,produsen_id',
             'number_value' => 'nullable|numeric',
         ]);
 
         $oldValues = $datum->only([
             'metadata_id', 'location_id', 'time_id', 'rujukan_id', 'produsen_id', 'number_value',
         ]);
-        // Resolve produsen_id from rujukan if not provided explicitly
-        $rujukan = Rujukan::where('rujukan_id', $request->rujukan_id)->first();
-        $produsenFromRujukan = $rujukan?->produsen_id ?? null;
-
         $datum->fill([
             'metadata_id' => $request->metadata_id,
             'location_id' => $request->location_id,
             'time_id' => $request->time_id,
             'rujukan_id' => $request->rujukan_id,
-            'produsen_id' => $request->filled('produsen_id') ? $request->produsen_id : $produsenFromRujukan,
+            'produsen_id' => $request->produsen_id,
             'number_value' => $request->number_value,
             'status' => Data::STATUS_PENDING,
             'workflow_status' => Data::WORKFLOW_DRAFT,
@@ -781,18 +922,18 @@ class DataController extends Controller
     public function storeTemplate(Request $request)
     {
         $request->validate([
-            'nama_tampilan'      => 'required|max:100',
+            'nama_tampilan' => 'required|max:100',
             'filter_metadata_id' => 'nullable|exists:metadata,metadata_id',
-            'filter_wilayah_id'  => 'nullable|exists:location,location_id',
-            'filter_year'        => 'nullable|integer|min:1900|max:2100',
-            'data_ids'           => 'nullable|array',
-            'data_ids.*'         => 'exists:data,id',
+            'filter_wilayah_id' => 'nullable|exists:location,location_id',
+            'filter_year' => 'nullable|integer|min:1900|max:2100',
+            'data_ids' => 'nullable|array',
+            'data_ids.*' => 'exists:data,id',
         ]);
 
         $filterParams = array_filter([
-            'metadata_id'       => $request->filter_metadata_id,
+            'metadata_id' => $request->filter_metadata_id,
             'filter_wilayah_id' => $request->filter_wilayah_id,
-            'year'              => $request->filter_year,
+            'year' => $request->filter_year,
         ]);
 
         $limitsService = app(SubscriptionLimitsService::class);
@@ -803,7 +944,7 @@ class DataController extends Controller
 
         $tampilan = Tampilan::create([
             'nama_tampilan' => $request->nama_tampilan,
-            'user_id'       => Auth::user()->user_id,
+            'user_id' => Auth::user()->user_id,
             'filter_params' => $filterParams ?: null,
         ]);
 
@@ -824,8 +965,11 @@ class DataController extends Controller
 
     public function deleteTemplate(Tampilan $tampilan)
     {
-        if ($tampilan->user_id !== Auth::user()->user_id) abort(403);
+        if ($tampilan->user_id !== Auth::user()->user_id) {
+            abort(403);
+        }
         $tampilan->delete();
+
         return redirect()->route('data.index')->with('success', 'Template berhasil dihapus.');
     }
 }
