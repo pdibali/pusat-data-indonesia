@@ -52,6 +52,21 @@ class ProdusenBulkImportTest extends TestCase
         ]);
     }
 
+    public function test_bulk_import_accepts_producer_names_longer_than_100_characters(): void
+    {
+        $name = str_repeat('D', 255);
+        $path = $this->makeWorkbook([
+            ['nama_produsen'],
+            [$name],
+        ]);
+
+        $result = (new ProdusenBulkImport)->import($path);
+
+        $this->assertSame([], $result['errors']);
+        $this->assertSame(1, $result['imported']);
+        $this->assertDatabaseHas('produsen_data', ['nama_produsen' => $name]);
+    }
+
     public function test_bulk_import_rejects_the_whole_file_when_any_name_is_duplicate(): void
     {
         ProdusenData::create(['nama_produsen' => 'Produsen Terdaftar', 'status' => 1]);

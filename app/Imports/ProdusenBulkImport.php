@@ -68,7 +68,7 @@ class ProdusenBulkImport
             $row['status'] = $this->parseStatus($row['status'] ?? null);
 
             $validator = Validator::make($row, [
-                'nama_produsen' => 'required|string|max:100',
+                'nama_produsen' => 'required|string|max:255',
                 'nama_contact_person' => 'nullable|string|max:100',
                 'kontak' => 'nullable|string|max:100',
                 'email' => 'nullable|email|max:100',

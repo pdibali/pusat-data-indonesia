@@ -132,7 +132,7 @@ class ProdusenController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nama_produsen' => 'required|string|max:100',
+            'nama_produsen' => 'required|string|max:255',
             'email' => 'nullable|email|max:100',
             'nama_contact_person' => 'nullable|string|max:100',
             'kontak' => 'nullable|string|max:100',
@@ -160,7 +160,7 @@ class ProdusenController extends Controller
     public function update(Request $request, ProdusenData $produsen)
     {
         $request->validate([
-            'nama_produsen' => 'required|string|max:100',
+            'nama_produsen' => 'required|string|max:255',
             'email' => 'nullable|email|max:100',
             'nama_contact_person' => 'nullable|string|max:100',
             'kontak' => 'nullable|string|max:100',
