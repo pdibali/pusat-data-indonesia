@@ -749,18 +749,18 @@ class TemplateController extends Controller
             $location = Location::find($locationId);
         }
 
-        // Ambil sumber dari data-rujukan_id-produsen_id, BUKAN dari metadata->produsen_id
+        // Sumber produsen data berasal dari produsen_id pada tabel data.
         $dataRow = Data::where('metadata_id', $metadataId)
             ->where('location_id', $locationId)
             ->where('status', Data::STATUS_AVAILABLE)
-            ->whereNotNull('rujukan_id')
-            ->with('rujukan.produsen')
+            ->whereNotNull('produsen_id')
+            ->with('produsen:produsen_id,nama_produsen')
             ->latest('date_inputed')
             ->first();
 
-        $rujukan = $dataRow?->rujukan?->produsen;
+        $produsen = $dataRow?->produsen;
 
-        return view('pages.template.grafik', compact('metadata', 'location', 'rujukan'));
+        return view('pages.template.grafik', compact('metadata', 'location', 'produsen'));
     }
 
     /**
@@ -1088,7 +1088,10 @@ class TemplateController extends Controller
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
     
         // ── Query data — ambil semua sekaligus ────────────────
-        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
+        $dataQuery = Data::with([
+            'produsen:produsen_id,nama_produsen',
+            'rujukan:rujukan_id,nama_rujukan,produsen_id',
+        ])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
     
@@ -1104,11 +1107,14 @@ class TemplateController extends Controller
         // sumber (produsen) yang dipilih adalah yang terbaru, konsisten dengan grafik.
         $dataQuery->orderByDesc('date_inputed');
 
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
+        $allData = $dataQuery->get([
+            'id', 'metadata_id', 'location_id', 'time_id', 'number_value',
+            'produsen_id', 'rujukan_id', 'date_inputed',
+        ]);
     
         // Index: [metadata_id][location_id][time_id] = value
         $dataIndex    = [];
-        $rujukanIndex = [];
+        $produsenIndex = [];
         $sumberRujukanIndex = [];
     
         
@@ -1119,9 +1125,9 @@ class TemplateController extends Controller
                 $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
             }
 
-            $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
-            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
-                $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
+            $namaProdusen = $d->produsen?->nama_produsen;
+            if ($namaProdusen && !isset($produsenIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $produsenIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
             $namaRujukan = $d->rujukan?->nama_rujukan;
             if ($namaRujukan && !isset($sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
@@ -1170,14 +1176,14 @@ class TemplateController extends Controller
             }
     
                 // Sumber — pilih produsen yang relevan.
-                $rujukan = '-';
-                if ($locId && isset($rujukanIndex[$mId][$locId])) {
+                $sumberProdusen = '-';
+                if ($locId && isset($produsenIndex[$mId][$locId])) {
                     // Untuk lokasi spesifik: ambil produsen pertama yang ada (first-wins)
-                    $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
-                } elseif (isset($rujukanIndex[$mId])) {
+                    $sumberProdusen = collect($produsenIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($produsenIndex[$mId])) {
                     // Untuk 'Semua Wilayah' (locId null) — ambil produsen pertama dari
-                    // semua lokasi yang punya rujukan, mempertahankan ordering dari rujukanIndex
-                    $rujukan = collect($rujukanIndex[$mId])
+                    // semua lokasi, mempertahankan ordering dari produsenIndex
+                    $sumberProdusen = collect($produsenIndex[$mId])
                         ->map(fn($times) => collect($times)->filter()->first())
                         ->filter()
                         ->first() ?? '-';
@@ -1201,7 +1207,7 @@ class TemplateController extends Controller
                     'satuan'       => $m->satuan_data,
                     'location_id'  => $locId,
                     'lokasi_level' => $lokasiLevel,
-                    'sumber'       => $rujukan,
+                    'sumber'       => $sumberProdusen,
                     'sumber_rujukan' => $sumberRujukan,
                     'values'       => $values,
                 ];
@@ -1373,7 +1379,10 @@ class TemplateController extends Controller
 
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
 
-        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
+        $dataQuery = Data::with([
+            'produsen:produsen_id,nama_produsen',
+            'rujukan:rujukan_id,nama_rujukan,produsen_id',
+        ])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
 
@@ -1387,10 +1396,13 @@ class TemplateController extends Controller
         // Urutkan berdasarkan tanggal input paling baru agar sumber merefleksikan data terbaru
         $dataQuery->orderByDesc('date_inputed');
 
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
+        $allData = $dataQuery->get([
+            'id', 'metadata_id', 'location_id', 'time_id', 'number_value',
+            'produsen_id', 'rujukan_id', 'date_inputed',
+        ]);
 
         $dataIndex    = [];
-        $rujukanIndex = [];
+        $produsenIndex = [];
         $sumberRujukanIndex = [];
 
         foreach ($allData as $d) {
@@ -1398,9 +1410,9 @@ class TemplateController extends Controller
                 $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
             }
 
-            $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
-            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
-                $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
+            $namaProdusen = $d->produsen?->nama_produsen;
+            if ($namaProdusen && !isset($produsenIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $produsenIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
             $namaRujukan = $d->rujukan?->nama_rujukan;
             if ($namaRujukan && !isset($sumberRujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
@@ -1437,11 +1449,11 @@ class TemplateController extends Controller
                     }
                 }
 
-                $rujukan = '-';
-                if ($locId && isset($rujukanIndex[$mId][$locId])) {
-                    $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
-                } elseif (isset($rujukanIndex[$mId])) {
-                    $rujukan = collect($rujukanIndex[$mId])
+                $sumberProdusen = '-';
+                if ($locId && isset($produsenIndex[$mId][$locId])) {
+                    $sumberProdusen = collect($produsenIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($produsenIndex[$mId])) {
+                    $sumberProdusen = collect($produsenIndex[$mId])
                         ->map(fn($times) => collect($times)->filter()->first())
                         ->filter()
                         ->first() ?? '-';
@@ -1465,7 +1477,7 @@ class TemplateController extends Controller
                     'satuan'       => $m->satuan_data,
                     'location_id'  => $locId,
                     'lokasi_level' => $lokasiLevel,
-                    'sumber'       => $rujukan,
+                    'sumber'       => $sumberProdusen,
                     'sumber_rujukan' => $sumberRujukan,
                     'values'       => $values,
                 ];

@@ -189,7 +189,10 @@ class TemplateExportController extends Controller
 
         $locationMap = Location::pluck('nama_wilayah', 'location_id');
 
-        $dataQuery = Data::with(['rujukan:rujukan_id,nama_rujukan,produsen_id', 'rujukan.produsen:produsen_id,nama_produsen'])
+        $dataQuery = Data::with([
+            'produsen:produsen_id,nama_produsen',
+            'rujukan:rujukan_id,nama_rujukan,produsen_id',
+        ])
             ->whereIn('metadata_id', $metadataIds)
             ->where('status', Data::STATUS_AVAILABLE);
 
@@ -202,10 +205,13 @@ class TemplateExportController extends Controller
 
         $dataQuery->orderByDesc('date_inputed');
 
-        $allData = $dataQuery->get(['id', 'metadata_id', 'location_id', 'time_id', 'number_value', 'rujukan_id', 'date_inputed']);
+        $allData = $dataQuery->get([
+            'id', 'metadata_id', 'location_id', 'time_id', 'number_value',
+            'produsen_id', 'rujukan_id', 'date_inputed',
+        ]);
 
         $dataIndex             = [];
-        $rujukanIndex          = [];
+        $produsenIndex         = [];
         $sumberRujukanIndex    = [];
         $referenceMetadataIndex = [];
         foreach ($allData as $d) {
@@ -213,9 +219,9 @@ class TemplateExportController extends Controller
                 $dataIndex[$d->metadata_id][$d->location_id][$d->time_id] = $d->number_value;
             }
 
-            $namaProdusen = $d->rujukan?->produsen?->nama_produsen;
-            if ($namaProdusen && !isset($rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
-                $rujukanIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
+            $namaProdusen = $d->produsen?->nama_produsen;
+            if ($namaProdusen && !isset($produsenIndex[$d->metadata_id][$d->location_id][$d->time_id])) {
+                $produsenIndex[$d->metadata_id][$d->location_id][$d->time_id] = $namaProdusen;
             }
 
             if ($d->rujukan) {
@@ -256,11 +262,11 @@ class TemplateExportController extends Controller
                     }
                 }
 
-                $rujukan = '-';
-                if ($locId && isset($rujukanIndex[$mId][$locId])) {
-                    $rujukan = collect($rujukanIndex[$mId][$locId])->filter()->first() ?? '-';
-                } elseif (isset($rujukanIndex[$mId])) {
-                    $rujukan = collect($rujukanIndex[$mId])
+                $sumberProdusen = '-';
+                if ($locId && isset($produsenIndex[$mId][$locId])) {
+                    $sumberProdusen = collect($produsenIndex[$mId][$locId])->filter()->first() ?? '-';
+                } elseif (isset($produsenIndex[$mId])) {
+                    $sumberProdusen = collect($produsenIndex[$mId])
                         ->map(fn ($times) => collect($times)->filter()->first())
                         ->filter()
                         ->first() ?? '-';
@@ -281,7 +287,7 @@ class TemplateExportController extends Controller
                     'level'   => $level,
                     'loc_id'  => $locId,
                     'values'  => $values,
-                    'rujukan' => $rujukan,
+                    'rujukan' => $sumberProdusen,
                     'sumber_rujukan' => $sumberRujukan,
                 ];
             }
