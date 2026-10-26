@@ -1289,14 +1289,20 @@ async function loadFreqCountsGuest(tmpl) {
     });
 
     try {
-        const body = new URLSearchParams();
-        body.append('_token', TMPL_URLS.csrf);
-        (tmpl.metadata_ids ?? []).forEach(id => body.append('metadata_ids[]', id));
-        if (tmpl.metadata_location_ids) {
-            body.append('metadata_location_ids', JSON.stringify(tmpl.metadata_location_ids));
-        }
-
-        const res  = await fetch(TMPL_URLS.freqCountsGuest, { method:'POST', body });
+        const res = await fetch(TMPL_URLS.freqCountsGuest, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': TMPL_URLS.csrf,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                metadata_ids: tmpl.metadata_ids ?? [],
+                metadata_location_ids: tmpl.metadata_location_ids
+                    ? JSON.stringify(tmpl.metadata_location_ids)
+                    : null,
+            }),
+        });
         const data = await res.json();
 
         freqKeys.forEach(freq => {
@@ -1360,20 +1366,26 @@ async function tampilkanData(page = 1) {
         if (IS_GUEST && activeGuestTemplate) {
             // ── Mode Guest: kirim metadata_ids langsung ──────────
             const tmpl   = activeGuestTemplate;
-            const body   = new URLSearchParams();
-            body.append('_token', TMPL_URLS.csrf);
-            body.append('frekuensi', TS.frekuensi);
-            if (TS.year_from)   body.append('year_from',   TS.year_from);
-            if (TS.year_to)     body.append('year_to',     TS.year_to);
-            if (TS.period_from) body.append('period_from', TS.period_from);
-            if (TS.period_to)   body.append('period_to',   TS.period_to);
-            body.append('page', page);
-            (tmpl.metadata_ids ?? []).forEach(id => body.append('metadata_ids[]', id));
-            if (tmpl.metadata_location_ids) {
-                body.append('metadata_location_ids', JSON.stringify(tmpl.metadata_location_ids));
-            }
-
-            res = await fetch(TMPL_URLS.tableDataGuest, { method:'POST', body });
+            res = await fetch(TMPL_URLS.tableDataGuest, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': TMPL_URLS.csrf,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    frekuensi: TS.frekuensi,
+                    year_from: TS.year_from,
+                    year_to: TS.year_to,
+                    period_from: TS.period_from,
+                    period_to: TS.period_to,
+                    page,
+                    metadata_ids: tmpl.metadata_ids ?? [],
+                    metadata_location_ids: tmpl.metadata_location_ids
+                        ? JSON.stringify(tmpl.metadata_location_ids)
+                        : null,
+                }),
+            });
 
         } else {
             // ── Mode Auth: pakai tampilan_id seperti sebelumnya ──

@@ -674,6 +674,13 @@ class TemplateController extends Controller
         if (! $limitsService->canCreateTemplate(Auth::user())) {
             $maxTemplates = $limitsService->getMaxTemplates(Auth::user());
 
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Anda telah mencapai batas maksimal {$maxTemplates} template. Hapus template lama atau upgrade paket untuk menambah kapasitas.",
+                ], 403);
+            }
+
             return redirect()->route('data.index')
                 ->with('error', "Anda telah mencapai batas maksimal {$maxTemplates} template. Hapus template lama atau upgrade paket untuk menambah kapasitas.");
         }

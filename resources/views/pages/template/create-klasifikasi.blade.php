@@ -417,17 +417,6 @@
 
 @include('pages.template.metadata-detail-modal')
 
-{{-- HIDDEN FORM --}}
-<form id="formSaveTemplateHidden" action="{{ route('template.store') }}" method="POST" class="hidden">
-    @csrf
-    <input type="hidden" name="jenis_template" value="klasifikasi">
-    <input type="hidden" name="nama_tampilan"  id="hidNama">
-    <input type="hidden" name="klasifikasi"    id="hidKlasifikasi">
-    <div id="hidMetadataIds"></div>
-    <div id="hidLocationIds"></div>
-    <div id="hidUrutanBy"></div>
-</form>
-
 <script>
 // ─────────────────────────────────────────────────────────────
 // CONFIG
@@ -435,7 +424,6 @@
 const FETCH_KLASIFIKASI_URL = '{{ route("template.fetch_klasifikasi") }}';
 const URL_CHILDREN          = '{{ route("template.child_locations") }}';
 const CSRF                  = '{{ csrf_token() }}';
-const IS_LOGGED_IN          = {{ Auth::check() ? 'true' : 'false' }};
 
 const FREQ_KEYS   = ['dekade','tahunan','semester','kuartal','bulanan'];
 const FREQ_LABELS = { dekade:'Dekade', tahunan:'Tahunan', semester:'Semester', kuartal:'Kuartal', bulanan:'Bulanan' };
@@ -1171,84 +1159,45 @@ async function submitSaveTemplate() {
     if (document.getElementById('chkKlasifikasi').checked) urutanBy.push('klasifikasi');
     if (document.getElementById('chkWilayah').checked)     urutanBy.push('wilayah');
 
-    // =========================================================
-    // 🚀 MODE LOGIN
-    // =========================================================
-    if (IS_LOGGED_IN) {
-
-        document.getElementById('hidNama').value = nama;
-
-        // metadata_ids[]
-        document.getElementById('hidMetadataIds').innerHTML =
-            [...metaSet].map(id =>
-                `<input type="hidden" name="metadata_ids[]" value="${id}">`
-            ).join('');
-
-        // metadata_location_ids (JSON)
-        let mapInput = document.getElementById('hidMetaLocMap');
-        if (!mapInput) {
-            mapInput = document.createElement('input');
-            mapInput.type = 'hidden';
-            mapInput.name = 'metadata_location_ids';
-            mapInput.id   = 'hidMetaLocMap';
-            document.getElementById('formSaveTemplateHidden').appendChild(mapInput);
+    try {
+        const r = await fetch('{{ route("template.store") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                nama_tampilan: nama,
+                jenis_template: 'klasifikasi',
+                klasifikasi: document.getElementById('valKlasifikasi').value,
+                metadata_ids: [...metaSet],
+                metadata_location_ids: JSON.stringify(metaLocMap),
+                urutan_by: urutanBy,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) {
+            const validationMessage = Object.values(d.errors || {}).flat()[0];
+            throw new Error(validationMessage || d.message || 'Gagal menyimpan template.');
         }
 
-        mapInput.value = JSON.stringify(metaLocMap);
-
-        // Kosongkan field lama
-        document.getElementById('hidLocationIds').innerHTML = '';
-
-        // urutan_by[]
-        document.getElementById('hidUrutanBy').innerHTML =
-            urutanBy.map(v =>
-                `<input type="hidden" name="urutan_by[]" value="${v}">`
-            ).join('');
-
-        document.getElementById('formSaveTemplateHidden').submit();
-    }
-
-    // =========================================================
-    // 🧠 MODE GUEST (localStorage)
-    // =========================================================
-    else {
-        const body = new URLSearchParams();
-        body.append('_token', CSRF);
-        body.append('nama_tampilan', nama);
-        body.append('jenis_template', 'klasifikasi');
-
-        [...metaSet].forEach(id => body.append('metadata_ids[]', id));
-
-        // ⬇️ ini yang baru
-        body.append('metadata_location_ids', JSON.stringify(metaLocMap));
-
-        urutanBy.forEach(v => body.append('urutan_by[]', v));
-
-        try {
-            const r = await fetch('{{ route("template.store") }}', {
-                method: 'POST',
-                body
-            });
-
-            const d = await r.json();
-
-            if (d.success && d.storage === 'local') {
-                const existing = JSON.parse(localStorage.getItem('guest_templates') ?? '[]');
-                if (existing.length >= 2) {
-                    alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
-                    return;
-                }
-                d.template_data._local_id = 'local_' + Date.now(); 
-                existing.push(d.template_data);
-                localStorage.setItem('guest_templates', JSON.stringify(existing));
-
-                alert(`Template "${nama}" disimpan di browser.\nLogin untuk menyimpan ke server`);
-                closeSaveModal();
-                window.location.href = d.redirect;
+        if (d.storage === 'local') {
+            const existing = JSON.parse(localStorage.getItem('guest_templates') ?? '[]');
+            if (existing.length >= 2) {
+                alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
+                return;
             }
-        } catch (e) {
-            alert('Gagal menyimpan: ' + e.message);
+            d.template_data._local_id = 'local_' + Date.now();
+            existing.push(d.template_data);
+            localStorage.setItem('guest_templates', JSON.stringify(existing));
+            alert(`Template "${nama}" disimpan di browser.\nLogin untuk menyimpan ke server`);
         }
+
+        closeSaveModal();
+        window.location.href = d.redirect;
+    } catch (e) {
+        alert('Gagal menyimpan: ' + e.message);
     }
 }
 

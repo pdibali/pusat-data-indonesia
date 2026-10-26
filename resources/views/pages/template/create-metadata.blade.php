@@ -384,16 +384,6 @@
 
 @include('pages.template.metadata-detail-modal')
 
-{{-- HIDDEN FORM --}}
-<form id="formSaveTemplateHidden" action="{{ route('template.store') }}" method="POST" class="hidden">
-    @csrf
-    <input type="hidden" name="jenis_template" value="metadata">
-    <input type="hidden" name="nama_tampilan"  id="hidNama">
-    <div id="hidMetadataIds"></div>
-    <div id="hidLocationIds"></div>
-    <div id="hidUrutanBy"></div>
-</form>
-
 <script>
 // ═══════════════════════════════════════════════════════════════
 // DATA LOKASI — di-embed dari server
@@ -443,7 +433,6 @@ const SEARCH_META_URL   = '{{ route("template.search_metadata") }}';
 const FETCH_PREVIEW_URL = '{{ route("template.fetch_preview") }}';
 const URL_CHILDREN      = '{{ route("template.child_locations") }}';
 const CSRF              = '{{ csrf_token() }}';
-const IS_LOGGED_IN      = {{ Auth::check() ? 'true' : 'false' }};
 
 // ═══════════════════════════════════════════════════════════════
 // STATE CASCADE WILAYAH (native <select> — prefix m_)
@@ -720,20 +709,23 @@ async function loadMetadataPreview() {
     if (!metaIds.length) { alert('Pilih minimal 1 metadata terlebih dahulu.'); return; }
 
     const locId = mGetDeepestLocId();
-    const body  = new URLSearchParams();
-    body.append('_token', CSRF);
-    metaIds.forEach(id => body.append('metadata_ids[]', id));
-    if (locId) body.append('location_ids[]', locId);
 
     const btn = document.querySelector('button[onclick="loadMetadataPreview()"]');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-2"></i> Memuat...'; }
 
     try {
         const r = await fetch(FETCH_PREVIEW_URL, {
-        method: 'POST',
-        body,
-        headers: { 'Accept': 'application/json' }
-    });
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                metadata_ids: metaIds.map(Number),
+                location_ids: locId ? [Number(locId)] : [],
+            }),
+        });
 
     const text = await r.text(); // baca raw response dulu
     console.log('RAW RESPONSE:', text);
@@ -1169,57 +1161,47 @@ async function submitTemplate() {
         });
     }
  
-    if (IS_LOGGED_IN) {
-        // ── Submit via hidden form ──────────────────────────────────────
-        document.getElementById('hidNama').value = nama;
- 
-        document.getElementById('hidMetadataIds').innerHTML =
-            [...metaSet].map(id => `<input type="hidden" name="metadata_ids[]" value="${id}">`).join('');
- 
-        // Kirim peta lokasi sebagai JSON string (1 field)
-        // Field location_ids[] lama tidak dipakai lagi
-        let mapInput = document.getElementById('hidMetaLocMap');
-        if (!mapInput) {
-            mapInput = document.createElement('input');
-            mapInput.type = 'hidden';
-            mapInput.name = 'metadata_location_ids';
-            mapInput.id   = 'hidMetaLocMap';
-            document.getElementById('formSaveTemplateHidden').appendChild(mapInput);
+    const urutanBy = [...document.querySelectorAll('input[name="urutan_by[]"]:checked')]
+        .map(input => input.value);
+
+    try {
+        const r = await fetch('{{ route("template.store") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                nama_tampilan: nama,
+                jenis_template: 'metadata',
+                metadata_ids: [...metaSet],
+                metadata_location_ids: JSON.stringify(metaLocMap),
+                urutan_by: urutanBy,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) {
+            const validationMessage = Object.values(d.errors || {}).flat()[0];
+            throw new Error(validationMessage || d.message || 'Gagal menyimpan template.');
         }
-        mapInput.value = JSON.stringify(metaLocMap);
- 
-        document.getElementById('hidLocationIds').innerHTML = ''; // kosongkan field lama
-        document.getElementById('hidUrutanBy').innerHTML =
-            [...document.querySelectorAll('input[name="urutan_by[]"]:checked')]
-                .map(c => `<input type="hidden" name="urutan_by[]" value="${c.value}">`).join('');
- 
-        document.getElementById('formSaveTemplateHidden').submit();
-    } else {
-        // ── Simpan ke localStorage (guest) ─────────────────────────────
-        const body = new URLSearchParams();
-        body.append('_token', CSRF);
-        body.append('nama_tampilan', nama);
-        body.append('jenis_template', 'metadata');
-        [...metaSet].forEach(id => body.append('metadata_ids[]', id));
-        body.append('metadata_location_ids', JSON.stringify(metaLocMap));
- 
-        try {
-            const r = await fetch('{{ route("template.store") }}', { method: 'POST', body });
-            const d = await r.json();
-            if (d.success && d.storage === 'local') {
-                const existing = JSON.parse(localStorage.getItem('guest_templates') || '[]');
-                if (existing.length >= 2) {
-                    alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
-                    return;
-                }
-                d.template_data._local_id = 'local_' + Date.now();
-                existing.push(d.template_data);
-                localStorage.setItem('guest_templates', JSON.stringify(existing));
-                alert(`Template "${nama}" disimpan di browser.\n(Login untuk menyimpan ke server)`);
-                closeModal();
-                window.location.href = d.redirect;
+
+        if (d.storage === 'local') {
+            const existing = JSON.parse(localStorage.getItem('guest_templates') || '[]');
+            if (existing.length >= 2) {
+                alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
+                return;
             }
-        } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+            d.template_data._local_id = 'local_' + Date.now();
+            existing.push(d.template_data);
+            localStorage.setItem('guest_templates', JSON.stringify(existing));
+            alert(`Template "${nama}" disimpan di browser.\n(Login untuk menyimpan ke server)`);
+        }
+
+        closeModal();
+        window.location.href = d.redirect;
+    } catch (e) {
+        alert('Gagal menyimpan: ' + e.message);
     }
 }
 

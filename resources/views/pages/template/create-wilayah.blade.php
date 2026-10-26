@@ -326,19 +326,9 @@
 
 @include('pages.template.metadata-detail-modal')
 
-{{-- Hidden form --}}
-<form id="formSave" action="{{ route('template.store') }}" method="POST" class="hidden">
-    @csrf
-    <input type="hidden" name="jenis_template" value="wilayah">
-    <input type="hidden" name="nama_tampilan" id="fNama">
-    <div id="fMetadataIds"></div>
-    <div id="fLocationIds"></div>
-</form>
-
 {{-- ═══ DATA SEMUA LOKASI — di-embed dari server tanpa loading ═══ --}}
 <script>
 
-// Tambahkan setelah const IS_LOGGED_IN
 const URL_RESTORE_STATE = '{{ route("template.restore_state") }}';
 
 // Deteksi jika kembali dari grafik
@@ -488,7 +478,6 @@ ALL_LOCATIONS.forEach(l => {
 const URL_FETCH_WIL = '{{ route("template.fetch_wilayah") }}';
 const URL_CHILDREN  = '{{ route("template.child_locations") }}';
 const CSRF          = '{{ csrf_token() }}';
-const IS_LOGGED_IN  = {{ Auth::check() ? 'true' : 'false' }};
 
 // ─── State cascade ────────────────────────────────────────────
 const LEVELS = ['provinsi', 'kabupaten', 'kecamatan', 'desa'];
@@ -1115,51 +1104,43 @@ async function submitTemplate() {
         if (!metaLocMap[String(mid)]) metaLocMap[String(mid)] = [];
     });
  
-    if (IS_LOGGED_IN) {
-        document.getElementById('fNama').value = nama;
- 
-        document.getElementById('fMetadataIds').innerHTML =
-            [...metaSet].map(id => `<input type="hidden" name="metadata_ids[]" value="${id}">`).join('');
- 
-        // Kirim peta lokasi sebagai JSON string
-        let mapInput = document.getElementById('fMetaLocMap');
-        if (!mapInput) {
-            mapInput = document.createElement('input');
-            mapInput.type = 'hidden';
-            mapInput.name = 'metadata_location_ids';
-            mapInput.id   = 'fMetaLocMap';
-            document.getElementById('formSave').appendChild(mapInput);
+    try {
+        const r = await fetch('{{ route("template.store") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                nama_tampilan: nama,
+                jenis_template: 'wilayah',
+                metadata_ids: [...metaSet],
+                metadata_location_ids: JSON.stringify(metaLocMap),
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) {
+            const validationMessage = Object.values(d.errors || {}).flat()[0];
+            throw new Error(validationMessage || d.message || 'Gagal menyimpan template.');
         }
-        mapInput.value = JSON.stringify(metaLocMap);
- 
-        document.getElementById('fLocationIds').innerHTML = ''; // kosongkan field lama
- 
-        document.getElementById('formSave').submit();
-    } else {
-        const body = new URLSearchParams();
-        body.append('_token', CSRF);
-        body.append('nama_tampilan', nama);
-        body.append('jenis_template', 'wilayah');
-        [...metaSet].forEach(id => body.append('metadata_ids[]', id));
-        body.append('metadata_location_ids', JSON.stringify(metaLocMap));
- 
-        try {
-            const r = await fetch('{{ route("template.store") }}', { method: 'POST', body });
-            const d = await r.json();
-            if (d.success && d.storage === 'local') {
-                const existing = JSON.parse(localStorage.getItem('guest_templates') || '[]');
-                if (existing.length >= 2) {
-                    alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
-                    return;
-                }
-                d.template_data._local_id = 'local_' + Date.now();  // konsisten pakai _local_id
-                existing.push(d.template_data);
-                localStorage.setItem('guest_templates', JSON.stringify(existing));
-                alert(`Template "${nama}" disimpan di browser.\n(Login untuk menyimpan ke server)`);
-                closeModal();
-                window.location.href = d.redirect;
+
+        if (d.storage === 'local') {
+            const existing = JSON.parse(localStorage.getItem('guest_templates') || '[]');
+            if (existing.length >= 2) {
+                alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
+                return;
             }
-        } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+            d.template_data._local_id = 'local_' + Date.now();
+            existing.push(d.template_data);
+            localStorage.setItem('guest_templates', JSON.stringify(existing));
+            alert(`Template "${nama}" disimpan di browser.\n(Login untuk menyimpan ke server)`);
+        }
+
+        closeModal();
+        window.location.href = d.redirect;
+    } catch (e) {
+        alert('Gagal menyimpan: ' + e.message);
     }
 }
 
