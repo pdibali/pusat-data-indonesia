@@ -300,6 +300,7 @@
 
             <button
                 onclick="closeModal()"
+                id="btnCancelSaveTemplate"
                 class="w-full sm:w-auto
                     border border-gray-300
                     text-gray-500 hover:bg-gray-100
@@ -310,6 +311,7 @@
 
             <button
                 onclick="submitTemplate()"
+                id="btnSaveTemplate"
                 class="w-full sm:w-auto
                     px-5 py-2 text-white text-sm font-semibold
                     rounded-lg flex items-center justify-center gap-2
@@ -745,11 +747,11 @@ function activateTabs(grouped) {
         }
     });
 
-    // Hitung total semua tab
-    const total = FREQ_KEYS.reduce((s, f) => s + (grouped[f] || []).length, 0);
-    document.getElementById('totalBadge').textContent = total + ' baris';
-
-    if (firstActive) switchTab(firstActive);
+    if (firstActive) {
+        switchTab(firstActive);
+    } else {
+        document.getElementById('totalBadge').textContent = '0 baris';
+    }
 }
 
 function switchTab(freq) {
@@ -768,6 +770,7 @@ function switchTab(freq) {
 
     // Render tabel dari grouped yang sudah ada (tanpa reload server)
     sortedRows  = [...(allGrouped[freq] || [])];
+    document.getElementById('totalBadge').textContent = sortedRows.length + ' baris';
     expandedMap = {};
     currentPage = 1;
     renderTable();
@@ -1067,7 +1070,25 @@ function goPage(p) { currentPage = p; renderTable(); }
 // MODAL SIMPAN
 // ═══════════════════════════════════════════════════════════════
 
+let templateSaveInProgress = false;
+
+function setTemplateSaveState(isSaving) {
+    templateSaveInProgress = isSaving;
+    const saveButton = document.getElementById('btnSaveTemplate');
+    const cancelButton = document.getElementById('btnCancelSaveTemplate');
+    if (saveButton) {
+        saveButton.disabled = isSaving;
+        saveButton.classList.toggle('opacity-60', isSaving);
+        saveButton.classList.toggle('cursor-not-allowed', isSaving);
+        saveButton.innerHTML = isSaving
+            ? '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'
+            : '<i class="fas fa-save"></i> Simpan';
+    }
+    if (cancelButton) cancelButton.disabled = isSaving;
+}
+
 function openSaveModal() {
+    if (templateSaveInProgress) return;
     const count = Object.keys(selectedMap).length;
     if (!count) { alert('Pilih minimal 1 metadata untuk disimpan.'); return; }
     document.getElementById('modalMetaCount').textContent = count;
@@ -1077,9 +1098,14 @@ function openSaveModal() {
     setTimeout(() => document.getElementById('inputNama').focus(), 100);
 }
 
-function closeModal() { document.getElementById('modalSave').style.display = 'none'; }
+function closeModal() {
+    if (templateSaveInProgress) return;
+    document.getElementById('modalSave').style.display = 'none';
+}
 
 async function submitTemplate() {
+    if (templateSaveInProgress) return;
+
     const nama = document.getElementById('inputNama').value.trim();
     if (!nama) { document.getElementById('errNama').classList.remove('hidden'); return; }
  
@@ -1104,6 +1130,7 @@ async function submitTemplate() {
         if (!metaLocMap[String(mid)]) metaLocMap[String(mid)] = [];
     });
  
+    setTemplateSaveState(true);
     try {
         const r = await fetch('{{ route("template.store") }}', {
             method: 'POST',
@@ -1128,6 +1155,7 @@ async function submitTemplate() {
         if (d.storage === 'local') {
             const existing = JSON.parse(localStorage.getItem('guest_templates') || '[]');
             if (existing.length >= 2) {
+                setTemplateSaveState(false);
                 alert('Anda telah mencapai batas maksimal 2 template untuk pengguna guest. Login untuk menyimpan lebih banyak template.');
                 return;
             }
@@ -1140,6 +1168,7 @@ async function submitTemplate() {
         closeModal();
         window.location.href = d.redirect;
     } catch (e) {
+        setTemplateSaveState(false);
         alert('Gagal menyimpan: ' + e.message);
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\IsCustomer;
+use App\Http\Middleware\IsReviewer;
 use App\Models\ProdusenData;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,7 +16,7 @@ class ProdusenNameLengthTest extends TestCase
     public function test_produsen_names_longer_than_100_characters_can_be_created_and_updated(): void
     {
         $this->actingAs(User::factory()->create())
-            ->withoutMiddleware(IsCustomer::class);
+            ->withoutMiddleware([IsCustomer::class, IsReviewer::class]);
         $name = str_repeat('D', 255);
 
         $response = $this->post(route('admin.produsen.store'), [
@@ -39,7 +40,7 @@ class ProdusenNameLengthTest extends TestCase
     public function test_produsen_names_longer_than_255_characters_are_rejected(): void
     {
         $this->actingAs(User::factory()->create())
-            ->withoutMiddleware(IsCustomer::class);
+            ->withoutMiddleware([IsCustomer::class, IsReviewer::class]);
 
         $response = $this->post(route('admin.produsen.store'), [
             'nama_produsen' => str_repeat('D', 256),
