@@ -307,14 +307,12 @@ class TemplateExportController extends Controller
                     ['label' => 'Definisi', 'value' => $m->definisi],
                     ['label' => 'Metodologi', 'value' => $m->metodologi],
                     ['label' => 'Penjelasan Metode', 'value' => $m->penjelasan_metodologi],
-                    ['label' => 'Produsen Data', 'value' => $m->produsen?->nama_produsen],
                     ['label' => 'Tipe Data', 'value' => $m->tipe_data],
                     ['label' => 'Frekuensi Penerbitan', 'value' => $m->frekuensi_penerbitan],
                     ['label' => 'Wilayah (Lokasi Data)', 'value' => collect($metaRows)->pluck('lokasi')->unique()->implode(', ')],
                     ['label' => 'Satuan', 'value' => $m->satuan_data],
                     ['label' => 'Klasifikasi', 'value' => $m->klasifikasi?->nama_klasifikasi],
                     ['label' => 'Asumsi', 'value' => $m->asumsi],
-                    ['label' => 'Sumber Rujukan', 'value' => implode("\n", $referenceMetadataIndex[$mId] ?? [])],
                 ],
             ];
         }
@@ -577,7 +575,7 @@ class TemplateExportController extends Controller
                     'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
                     'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D0D0D0']]],
                 ]);
-                $ws->getRowDimension($r)->setRowHeight($label === 'Sumber Rujukan' ? 55 : 36);
+                $ws->getRowDimension($r)->setRowHeight(36);
                 $r++;
             }
 
@@ -646,16 +644,13 @@ class TemplateExportController extends Controller
                 'definisi'               => $m?->definisi,
                 'metodologi'             => $m?->metodologi,
                 'penjelasan_metodologi'  => $m?->penjelasan_metodologi,
-                'produsen_data'          => $m?->produsen?->nama_produsen,
                 'tipe_data'              => $m?->tipe_data,
                 'frekuensi_penerbitan'   => $m?->frekuensi_penerbitan,
                 'wilayah_lokasi_data'    => collect($meta['rows'])->pluck('lokasi')->unique()->values()->all(),
                 'satuan'                 => $m?->satuan_data,
                 'sumber_produsen'        => $meta['sumber'],
-                'sumber_rujukan'         => $meta['references'] ?? null,
                 'klasifikasi'            => $m?->klasifikasi?->nama_klasifikasi,
                 'asumsi'                 => $m?->asumsi,
-                'rujukan'                => $meta['references'] ?? null,
                 'metadata_fields'        => array_map(
                     fn ($field) => [
                         'label' => $field['label'],

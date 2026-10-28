@@ -69,11 +69,21 @@ class TemplateProducerSourceTest extends TestCase
         $pdfResponse = $this->post(route('template.export.pdf'), $payload);
         $pdfResponse->assertOk()
             ->assertViewHas('grouped', fn ($grouped) => $grouped[$ids['metadata']]['sumber']
-                === 'PT PLN (Persero) Unit Induk Distribusi Bali');
+                === 'PT PLN (Persero) Unit Induk Distribusi Bali')
+            ->assertViewHas('grouped', fn ($grouped) => collect($grouped[$ids['metadata']]['metadata_fields'])
+                ->pluck('label')
+                ->doesntContain('Sumber Rujukan'))
+            ->assertDontSeeText('Produsen Data');
 
         $this->postJson(route('template.export.json'), $payload)
             ->assertOk()
-            ->assertJsonPath('data.0.sumber_produsen', 'PT PLN (Persero) Unit Induk Distribusi Bali');
+            ->assertJsonPath('data.0.sumber_produsen', 'PT PLN (Persero) Unit Induk Distribusi Bali')
+            ->assertJsonPath('data.0.sumber_rujukan', 'Rujukan Statistik')
+            ->assertJsonMissingPath('informasi_data.0.produsen_data')
+            ->assertJsonMissingPath('informasi_data.0.sumber_rujukan')
+            ->assertJsonMissingPath('informasi_data.0.rujukan')
+            ->assertJsonMissing(['label' => 'Produsen Data'])
+            ->assertJsonMissing(['label' => 'Sumber Rujukan']);
 
         $excelResponse = $this->post(route('template.export.excel'), $payload);
         $excelResponse->assertOk();
@@ -82,18 +92,30 @@ class TemplateProducerSourceTest extends TestCase
             file_put_contents($path, $excelResponse->streamedContent());
             $spreadsheet = IOFactory::load($path);
             $sheet = $spreadsheet->getSheetByName('Data');
+            $informasiDataSheet = $spreadsheet->getSheetByName('Informasi Data');
             $producerColumn = null;
+            $referenceColumn = null;
             foreach ($sheet->getRowIterator(1, 1)->current()->getCellIterator() as $cell) {
                 if ($cell->getValue() === 'Sumber Produsen') {
                     $producerColumn = $cell->getColumn();
-                    break;
+                }
+                if ($cell->getValue() === 'Sumber Rujukan') {
+                    $referenceColumn = $cell->getColumn();
                 }
             }
             $this->assertNotNull($producerColumn);
+            $this->assertNotNull($referenceColumn);
             $this->assertSame(
                 'PT PLN (Persero) Unit Induk Distribusi Bali',
                 $sheet->getCell($producerColumn.'3')->getValue()
             );
+            $this->assertSame('Rujukan Statistik', $sheet->getCell($referenceColumn.'3')->getValue());
+            $informasiDataLabels = array_column(
+                $informasiDataSheet->rangeToArray('A1:A30', null, true, false),
+                0
+            );
+            $this->assertNotContains('Produsen Data', $informasiDataLabels);
+            $this->assertNotContains('Sumber Rujukan', $informasiDataLabels);
         } finally {
             unlink($path);
         }
