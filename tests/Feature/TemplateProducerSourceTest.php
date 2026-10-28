@@ -70,20 +70,26 @@ class TemplateProducerSourceTest extends TestCase
         $pdfResponse->assertOk()
             ->assertViewHas('grouped', fn ($grouped) => $grouped[$ids['metadata']]['sumber']
                 === 'PT PLN (Persero) Unit Induk Distribusi Bali')
-            ->assertViewHas('grouped', fn ($grouped) => collect($grouped[$ids['metadata']]['metadata_fields'])
-                ->pluck('label')
-                ->doesntContain('Sumber Rujukan'))
+            ->assertViewHas('grouped', function ($grouped) use ($ids) {
+                $labels = collect($grouped[$ids['metadata']]['metadata_fields'])->pluck('label');
+
+                return !$labels->contains('Sumber Rujukan')
+                    && !$labels->contains('Wilayah (Lokasi Data)');
+            })
             ->assertDontSeeText('Produsen Data');
 
         $this->postJson(route('template.export.json'), $payload)
             ->assertOk()
             ->assertJsonPath('data.0.sumber_produsen', 'PT PLN (Persero) Unit Induk Distribusi Bali')
             ->assertJsonPath('data.0.sumber_rujukan', 'Rujukan Statistik')
+            ->assertJsonPath('data.0.wilayah', 'Kabupaten Badung')
             ->assertJsonMissingPath('informasi_data.0.produsen_data')
             ->assertJsonMissingPath('informasi_data.0.sumber_rujukan')
             ->assertJsonMissingPath('informasi_data.0.rujukan')
+            ->assertJsonMissingPath('informasi_data.0.wilayah_lokasi_data')
             ->assertJsonMissing(['label' => 'Produsen Data'])
-            ->assertJsonMissing(['label' => 'Sumber Rujukan']);
+            ->assertJsonMissing(['label' => 'Sumber Rujukan'])
+            ->assertJsonMissing(['label' => 'Wilayah (Lokasi Data)']);
 
         $excelResponse = $this->post(route('template.export.excel'), $payload);
         $excelResponse->assertOk();
@@ -116,6 +122,7 @@ class TemplateProducerSourceTest extends TestCase
             );
             $this->assertNotContains('Produsen Data', $informasiDataLabels);
             $this->assertNotContains('Sumber Rujukan', $informasiDataLabels);
+            $this->assertNotContains('Wilayah (Lokasi Data)', $informasiDataLabels);
         } finally {
             unlink($path);
         }
