@@ -557,6 +557,31 @@
                     </div>
                 </div>
 
+                {{-- Data yang tidak lolos validasi --}}
+                <details id="issueSection" class="hidden rounded-lg border border-rose-200 bg-rose-50">
+                    <summary class="cursor-pointer list-none p-3 flex items-center justify-between gap-3">
+                        <span class="flex items-center gap-2 text-sm font-semibold text-rose-800">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="issueLabel">Data bermasalah</span>
+                        </span>
+                        <span class="text-xs text-rose-700">Baris ini tidak akan diimport</span>
+                    </summary>
+                    <div class="px-3 pb-3 overflow-x-auto">
+                        <table class="w-full text-xs bg-white border border-rose-100 rounded">
+                            <thead class="bg-rose-100 text-rose-900 text-left">
+                                <tr>
+                                    <th class="px-3 py-2 font-semibold">Row Excel</th>
+                                    <th class="px-3 py-2 font-semibold">Nama</th>
+                                    <th class="px-3 py-2 font-semibold">Kolom</th>
+                                    <th class="px-3 py-2 font-semibold">Nilai di Excel</th>
+                                    <th class="px-3 py-2 font-semibold">Masalah</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issueBody" class="divide-y divide-rose-100"></tbody>
+                        </table>
+                    </div>
+                </details>
+
             </div>
 
             {{-- ── RESULT IMPORT ── --}}
@@ -1162,7 +1187,9 @@ function clearFile() {
 function resetPreview() {
     document.getElementById('previewResult').classList.add('hidden');
     document.getElementById('importResult').classList.add('hidden');
+    document.getElementById('importErrors').classList.add('hidden');
     document.getElementById('btnImport').classList.add('hidden');
+    document.getElementById('issueSection').classList.add('hidden');
     previewData = [];
     skippedData = [];
 }
@@ -1176,12 +1203,14 @@ async function doPreview() {
     const previewLoadingEl = safeGet('previewLoading');
     const previewResultEl  = safeGet('previewResult');
     const importResultEl   = safeGet('importResult');
+    const importErrorsEl   = safeGet('importErrors');
     const btnImportEl      = safeGet('btnImport');
     const btnPreviewEl     = safeGet('btnPreview');
 
     if (previewLoadingEl) previewLoadingEl.classList.remove('hidden');
     if (previewResultEl) previewResultEl.classList.add('hidden');
     if (importResultEl) importResultEl.classList.add('hidden');
+    if (importErrorsEl) importErrorsEl.classList.add('hidden');
     if (btnImportEl) btnImportEl.classList.add('hidden');
     if (btnPreviewEl) btnPreviewEl.disabled = true;
 
@@ -1207,6 +1236,7 @@ async function doPreview() {
         renderStats(json);
         renderPreviewTable(previewData);
         renderSkipped(skippedData);
+        renderIssues(json.issues || []);
 
         if (previewResultEl) previewResultEl.classList.remove('hidden');
 
@@ -1278,23 +1308,25 @@ async function doImport() {
                 const importErrorsEl = safeGet('importErrors');
                 if (importErrorsEl) {
                     importErrorsEl.innerHTML = `
-                        <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                        <div class="p-4 bg-rose-50 border border-rose-200 rounded-lg text-sm text-rose-800">
                             <p class="font-semibold">Beberapa baris tidak diimport</p>
-                            <p class="text-xs mt-1">${json.error_count} baris gagal karena produsen tidak ditemukan.</p>
+                            <p class="text-xs mt-1">${json.error_count} baris dilewati karena ada data yang tidak valid.</p>
                             <div class="mt-3 overflow-x-auto">
                                 <table class="w-full text-xs">
-                                    <thead class="bg-yellow-100 text-yellow-800 text-left"><tr>
+                                    <thead class="bg-rose-100 text-rose-900 text-left"><tr>
                                         <th class="px-3 py-2">Row</th>
                                         <th class="px-3 py-2">Nama</th>
-                                        <th class="px-3 py-2">Produsen Input</th>
-                                        <th class="px-3 py-2">Alasan</th>
+                                        <th class="px-3 py-2">Kolom</th>
+                                        <th class="px-3 py-2">Nilai di Excel</th>
+                                        <th class="px-3 py-2">Masalah</th>
                                     </tr></thead>
                                     <tbody>` + json.errors.map(e => `
                                         <tr>
                                             <td class="px-3 py-2 text-gray-600">${escHtml(e.row)}</td>
                                             <td class="px-3 py-2 text-gray-800">${escHtml(e.nama)}</td>
-                                            <td class="px-3 py-2 text-gray-700">${escHtml(e.produsen_input)}</td>
-                                            <td class="px-3 py-2 text-yellow-900">${escHtml(e.reason)}</td>
+                                            <td class="px-3 py-2 text-gray-700">${escHtml(e.field || 'Data')}</td>
+                                            <td class="px-3 py-2 text-gray-700">${escHtml(e.value ?? e.produsen_input)}</td>
+                                            <td class="px-3 py-2 text-rose-900">${escHtml(e.reason)}</td>
                                         </tr>
                                     `).join('') + `</tbody></table></div></div>`;
                     importErrorsEl.classList.remove('hidden');
@@ -1320,9 +1352,8 @@ function renderStats(json) {
         { label: 'Sudah di DB',   value: json.dup_db,     color: '#fef3c7', text: '#92400e' },
         { label: 'Dilewati',      value: json.skipped,    color: '#f3f4f6', text: '#6b7280' },
     ];
-    // if there are produsen errors, add a badge
-    if (json.produsen_errors_count && json.produsen_errors_count > 0) {
-        stats.push({ label: 'Produsen Tidak Cocok', value: json.produsen_errors_count, color: '#fff7ed', text: '#c2410c' });
+    if (json.issues_count > 0) {
+        stats.push({ label: 'Data Bermasalah', value: json.issues_count, color: '#ffe4e6', text: '#be123c' });
     }
 
     document.getElementById('statsBar').innerHTML = stats.map(s =>
@@ -1389,6 +1420,31 @@ function renderSkipped(rows) {
                     ${escHtml(r.reason)}
                 </span>
             </td>
+        </tr>`
+    ).join('');
+}
+
+function renderIssues(rows) {
+    const section = document.getElementById('issueSection');
+    if (rows.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+    section.open = true;
+    document.getElementById('issueLabel').textContent = `${rows.length} baris bermasalah`;
+    document.getElementById('issueBody').innerHTML = rows.map(issue =>
+        `<tr>
+            <td class="px-3 py-2 text-gray-600">${escHtml(issue.row)}</td>
+            <td class="px-3 py-2 text-gray-800">${escHtml(issue.nama)}</td>
+            <td class="px-3 py-2">
+                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                    ${escHtml(issue.field)}
+                </span>
+            </td>
+            <td class="px-3 py-2 text-gray-700">${escHtml(issue.value ?? '—')}</td>
+            <td class="px-3 py-2 text-rose-900">${escHtml(issue.reason)}</td>
         </tr>`
     ).join('');
 }

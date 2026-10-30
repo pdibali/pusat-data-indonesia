@@ -70,6 +70,24 @@ class MetadataImportController extends Controller
 
         return $this->klasifikasiCache[$key];
     }
+
+    private function klasifikasiIssue(mixed $input, ?int $klasifikasiId, array $klasifikasiMap): ?string
+    {
+        if ($input === null || trim((string) $input) === '') {
+            return 'Klasifikasi kosong.';
+        }
+
+        if ($klasifikasiId === null) {
+            return 'Nama klasifikasi tidak ditemukan di database.';
+        }
+
+        if (!array_key_exists($klasifikasiId, $klasifikasiMap)) {
+            return "ID klasifikasi {$klasifikasiId} tidak ditemukan di database.";
+        }
+
+        return null;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // TUNING
     // ─────────────────────────────────────────────────────────────
@@ -282,6 +300,8 @@ class MetadataImportController extends Controller
             $valid   = [];
             $skipped = [];
             $produsenErrors = [];
+            $issues = [];
+            $skippedCount = 0;
             $seen    = [];
             $rowNum  = 2;
             $klasifikasiMap = \App\Models\Klasifikasi::pluck('nama_klasifikasi', 'klasifikasi_id')->toArray();
@@ -301,11 +321,31 @@ class MetadataImportController extends Controller
                         'nama'   => $this->smartNormalizeWilayah($r['nama']),
                         'reason' => 'Duplikat dalam file Excel',
                     ];
+                    $skippedCount++;
                     $rowNum++;
                     continue;
                 }
 
                 $seen[$key] = true;
+
+                $klasifikasiInput = $raw[5] ?? null;
+                $klasifikasiProblem = $this->klasifikasiIssue(
+                    $klasifikasiInput,
+                    $r['klasifikasi_id'],
+                    $klasifikasiMap
+                );
+                if ($klasifikasiProblem !== null) {
+                    $issues[] = [
+                        'row' => $rowNum,
+                        'nama' => $this->smartNormalizeWilayah($r['nama']),
+                        'field' => 'Klasifikasi',
+                        'value' => $klasifikasiInput,
+                        'reason' => $klasifikasiProblem,
+                    ];
+                    $skippedCount++;
+                    $rowNum++;
+                    continue;
+                }
 
                 $produsenNama = '-';
                 $pmVal = $r['sumber_metadata_pertama'] ?? null;
@@ -332,18 +372,20 @@ class MetadataImportController extends Controller
                     }
                 }
 
-                // If produsen not found, mark as skipped/error so it won't be counted as importable
                 if (! $produsenFound) {
-                    $skipped[] = [
-                        'row'    => $rowNum,
-                        'nama'   => $this->smartNormalizeWilayah($r['nama']),
-                        'reason' => 'Produsen tidak ditemukan',
+                    $issues[] = [
+                        'row' => $rowNum,
+                        'nama' => $this->smartNormalizeWilayah($r['nama']),
+                        'field' => 'Produsen',
+                        'value' => $pmVal,
+                        'reason' => 'Produsen tidak ditemukan di database.',
                     ];
                     $produsenErrors[] = [
                         'row' => $rowNum,
                         'nama' => $this->smartNormalizeWilayah($r['nama']),
                         'produsen_input' => $pmVal,
                     ];
+                    $skippedCount++;
                     $rowNum++;
                     continue;
                 }
@@ -367,13 +409,15 @@ class MetadataImportController extends Controller
             }
             return response()->json([
                 'success'      => true,
-                'total_rows'   => count($valid) + count($skipped),
+                'total_rows'   => count($valid) + $skippedCount,
                 'valid'        => count($valid),
                 'new'          => count(array_filter($valid, fn($r) => !$r['exists_in_db'])),
                 'dup_db'       => count(array_filter($valid, fn($r) => $r['exists_in_db'])),
-                'skipped'      => count($skipped),
+                'skipped'      => $skippedCount,
                 'rows'         => $valid,
                 'skipped_rows' => $skipped,
+                'issues' => $issues,
+                'issues_count' => count($issues),
                 'produsen_errors_count' => count($produsenErrors),
                 'produsen_errors' => $produsenErrors,
             ]);
@@ -415,10 +459,12 @@ class MetadataImportController extends Controller
             // pre-check removed; we'll validate produsen existence per-row during processing
 
             $errorRows = [];
+            $klasifikasiMap = \App\Models\Klasifikasi::pluck('nama_klasifikasi', 'klasifikasi_id')->toArray();
 
             DB::transaction(function () use (
                 $filePath, $skipExisting, $defaultProdusenId,
                 $userId, $now, $totalRows,
+                $klasifikasiMap,
                 &$existingInDb,
                 &$seen, &$inserted, &$skipped, &$toInsert,
                 &$errorRows
@@ -453,6 +499,25 @@ class MetadataImportController extends Controller
 
                         if ($skipExisting && isset($existingInDb[$key])) { $skipped++; $rowIndex++; continue; }
 
+                        $klasifikasiInput = $raw[5] ?? null;
+                        $klasifikasiProblem = $this->klasifikasiIssue(
+                            $klasifikasiInput,
+                            $r['klasifikasi_id'],
+                            $klasifikasiMap
+                        );
+                        if ($klasifikasiProblem !== null) {
+                            $skipped++;
+                            $errorRows[] = [
+                                'row' => $rowIndex,
+                                'nama' => $r['nama'] ?? null,
+                                'field' => 'Klasifikasi',
+                                'value' => $klasifikasiInput,
+                                'reason' => $klasifikasiProblem,
+                            ];
+                            $rowIndex++;
+                            continue;
+                        }
+
                         // Resolve produsen input: accept numeric id or produsen name
                         $produsenId = null;
                         $pmVal = $r['sumber_metadata_pertama'] ?? null;
@@ -479,8 +544,10 @@ class MetadataImportController extends Controller
                             $errorRows[] = [
                                 'row' => $rowIndex,
                                 'nama' => $r['nama'] ?? null,
+                                'field' => 'Produsen',
+                                'value' => $pmVal,
                                 'produsen_input' => $pmVal,
-                                'reason' => 'Produsen tidak ditemukan',
+                                'reason' => 'Produsen tidak ditemukan di database.',
                             ];
                             $rowIndex++;
                             continue;
