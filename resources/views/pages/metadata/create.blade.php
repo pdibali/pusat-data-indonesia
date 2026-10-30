@@ -403,7 +403,8 @@
                 </p>
                 <ul class="list-disc list-inside space-y-1 text-xsmt-1 text-gray-700">
                     <li>Format file yang didukung: <strong>.xlsx</strong> atau <strong>.xls</strong></li>
-                    <li>Baris pertama diasumsikan sebagai header dan akan diabaikan</li>
+                    <li>Baris pertama digunakan untuk mengenali nama kolom; urutan kolom boleh berbeda</li>
+                    <li>Header wajib: <strong>Nama</strong>, <strong>Klasifikasi</strong>, dan <strong>Sumber Metadata Pertama</strong> (atau <strong>Produsen</strong>)</li>
                     <li>Nama metadata yang mengandung nama wilayah akan dinormalisasi otomatis</li>
                     <li>Metadata dengan nama yang sama (dalam file atau database) hanya diinsert sekali</li>
                 </ul>
@@ -498,6 +499,36 @@
 
                 {{-- Stats bar --}}
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="statsBar"></div>
+
+                {{-- Diagnostik header --}}
+                <details id="headerDiagnosticsSection" class="hidden rounded-lg border border-amber-200 bg-amber-50">
+                    <summary class="cursor-pointer list-none p-3 flex items-center justify-between gap-3">
+                        <span class="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                            <i class="fas fa-columns"></i>
+                            <span id="headerDiagnosticsLabel">Periksa header Excel</span>
+                        </span>
+                        <span class="text-xs text-amber-800">Lihat detail dan urutan kolom</span>
+                    </summary>
+                    <div class="px-3 pb-3">
+                        <p id="headerOrderMessage" class="hidden text-xs text-amber-900 mb-2"></p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs bg-white border border-amber-100 rounded">
+                                <thead class="bg-amber-100 text-amber-900 text-left">
+                                    <tr>
+                                        <th class="px-3 py-2 font-semibold">Kolom Excel</th>
+                                        <th class="px-3 py-2 font-semibold">Header</th>
+                                        <th class="px-3 py-2 font-semibold">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="headerDiagnosticsBody" class="divide-y divide-amber-100"></tbody>
+                            </table>
+                        </div>
+                        <p class="text-xs text-gray-700 mt-3">
+                            Urutan header yang disarankan:
+                            <span id="expectedHeaderOrder" class="font-medium"></span>
+                        </p>
+                    </div>
+                </details>
 
                 {{-- Tabel preview --}}
                 <div>
@@ -1190,6 +1221,7 @@ function resetPreview() {
     document.getElementById('importErrors').classList.add('hidden');
     document.getElementById('btnImport').classList.add('hidden');
     document.getElementById('issueSection').classList.add('hidden');
+    document.getElementById('headerDiagnosticsSection').classList.add('hidden');
     previewData = [];
     skippedData = [];
 }
@@ -1234,13 +1266,14 @@ async function doPreview() {
         skippedData = json.skipped_rows || [];
 
         renderStats(json);
+        renderHeaderDiagnostics(json.header_diagnostics);
         renderPreviewTable(previewData);
         renderSkipped(skippedData);
         renderIssues(json.issues || []);
 
         if (previewResultEl) previewResultEl.classList.remove('hidden');
 
-        if (json.new > 0) {
+        if (json.new > 0 && json.can_import !== false) {
             safeSetText('importCount', json.new);
             if (btnImportEl) btnImportEl.classList.remove('hidden');
         }
@@ -1362,6 +1395,38 @@ function renderStats(json) {
             <p class="text-xs font-medium mt-0.5" style="color:${s.text};">${s.label}</p>
         </div>`
     ).join('');
+}
+
+function renderHeaderDiagnostics(diagnostics) {
+    const section = document.getElementById('headerDiagnosticsSection');
+    if (!diagnostics || !Array.isArray(diagnostics.issues) || diagnostics.issues.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+    section.open = Boolean(diagnostics.blocking);
+    document.getElementById('headerDiagnosticsLabel').textContent = diagnostics.blocking
+        ? 'Header Excel perlu diperbaiki'
+        : 'Urutan header berbeda dari template';
+
+    const orderMessage = document.getElementById('headerOrderMessage');
+    if (!diagnostics.order_matches) {
+        orderMessage.textContent = 'Kolom tetap dibaca berdasarkan nama header, jadi urutan yang berbeda tidak mengubah pemetaan data.';
+        orderMessage.classList.remove('hidden');
+    } else {
+        orderMessage.classList.add('hidden');
+    }
+
+    document.getElementById('headerDiagnosticsBody').innerHTML = diagnostics.issues.map(issue =>
+        `<tr>
+            <td class="px-3 py-2 text-gray-700">${escHtml(issue.column)}</td>
+            <td class="px-3 py-2 text-gray-800">${escHtml(issue.value)}</td>
+            <td class="px-3 py-2 text-amber-900">${escHtml(issue.reason)}</td>
+        </tr>`
+    ).join('');
+    document.getElementById('expectedHeaderOrder').textContent =
+        (diagnostics.expected_order || []).join(' → ');
 }
 
 function renderPreviewTable(rows) {

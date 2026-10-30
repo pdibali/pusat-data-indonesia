@@ -124,6 +124,72 @@ class MetadataImportController extends Controller
         22 => 'tahun_metadata',
     ];
 
+    private const IMPORT_HEADER_ALIASES = [
+        'id' => 'excel_id',
+        'excel id' => 'excel_id',
+        'nama' => 'nama',
+        'nama metadata' => 'nama',
+        'alias' => 'alias',
+        'konsep' => 'konsep',
+        'definisi' => 'definisi',
+        'klasifikasi' => 'klasifikasi_id',
+        'klasifikasi id' => 'klasifikasi_id',
+        'asumsi' => 'asumsi',
+        'metodologi' => 'metodologi',
+        'penjelasan metodologi' => 'penjelasan_metodologi',
+        'tipe data' => 'tipe_data',
+        'satuan data' => 'satuan_data',
+        'tahun mulai data' => 'tahun_mulai_data',
+        'tahun metadata' => 'tahun_metadata',
+        'frekuensi penerbitan' => 'frekuensi_penerbitan',
+        'frekuensi' => 'frekuensi_penerbitan',
+        'tahun data tersedia' => 'tahun_data_tersedia',
+        'tahun pertama rilis' => 'tahun_pertama_rilis',
+        'bulan pertama rilis' => 'bulan_pertama_rilis',
+        'tanggal rilis' => 'tanggal_rilis',
+        'sumber metadata pertama' => 'sumber_metadata_pertama',
+        'produsen' => 'sumber_metadata_pertama',
+        'produsen data' => 'sumber_metadata_pertama',
+        'tag' => 'tag',
+        'flag desimal' => 'flag_desimal',
+        'tipe group' => 'tipe_group',
+        'group by' => 'group_by',
+        'status' => 'status',
+    ];
+
+    private const IMPORT_HEADER_ORDER = [
+        'excel_id',
+        'nama',
+        'alias',
+        'konsep',
+        'definisi',
+        'klasifikasi_id',
+        'asumsi',
+        'metodologi',
+        'penjelasan_metodologi',
+        'tipe_data',
+        'satuan_data',
+        'tahun_mulai_data',
+        'frekuensi_penerbitan',
+        'tahun_data_tersedia',
+        'tahun_pertama_rilis',
+        'bulan_pertama_rilis',
+        'tanggal_rilis',
+        'sumber_metadata_pertama',
+        'tag',
+        'flag_desimal',
+        'tipe_group',
+        'group_by',
+        'status',
+        'tahun_metadata',
+    ];
+
+    private const IMPORT_REQUIRED_HEADERS = [
+        'nama' => 'Nama',
+        'klasifikasi_id' => 'Klasifikasi',
+        'sumber_metadata_pertama' => 'Sumber Metadata Pertama / Produsen',
+    ];
+
     private const STRING_DASH = [
         'konsep', 'definisi',
         'metodologi', 'penjelasan_metodologi',
@@ -286,10 +352,28 @@ class MetadataImportController extends Controller
         try {
             $spreadsheet = IOFactory::load($request->file('file')->getRealPath());
             $rows        = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
-            array_shift($rows); 
+            $headerRow = array_shift($rows) ?? [];
+            $headerInfo = $this->inspectImportHeaders($headerRow);
 
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet);
+
+            if ($headerInfo['blocking']) {
+                return response()->json([
+                    'success' => true,
+                    'total_rows' => 0,
+                    'valid' => 0,
+                    'new' => 0,
+                    'dup_db' => 0,
+                    'skipped' => 0,
+                    'rows' => [],
+                    'skipped_rows' => [],
+                    'issues' => [],
+                    'issues_count' => 0,
+                    'header_diagnostics' => $headerInfo,
+                    'can_import' => false,
+                ]);
+            }
 
             $existingInDb = Metadata::pluck('nama')
                 ->map(fn($n) => $this->dedupKey($n))
@@ -312,7 +396,7 @@ class MetadataImportController extends Controller
                     continue;
                 }
 
-                $r   = $this->parseRow($raw);
+                $r   = $this->parseRow($raw, $headerInfo['map']);
                 $key = $this->dedupKey($r['nama']);
 
                 if (isset($seen[$key])) {
@@ -328,7 +412,7 @@ class MetadataImportController extends Controller
 
                 $seen[$key] = true;
 
-                $klasifikasiInput = $raw[5] ?? null;
+                $klasifikasiInput = $r['_klasifikasi_input'];
                 $klasifikasiProblem = $this->klasifikasiIssue(
                     $klasifikasiInput,
                     $r['klasifikasi_id'],
@@ -418,6 +502,8 @@ class MetadataImportController extends Controller
                 'skipped_rows' => $skipped,
                 'issues' => $issues,
                 'issues_count' => count($issues),
+                'header_diagnostics' => $headerInfo,
+                'can_import' => true,
                 'produsen_errors_count' => count($produsenErrors),
                 'produsen_errors' => $produsenErrors,
             ]);
@@ -445,6 +531,17 @@ class MetadataImportController extends Controller
         $now               = now()->toDateTimeString();
 
         try {
+            $headerRow = $this->readImportHeader($filePath);
+            $headerInfo = $this->inspectImportHeaders($headerRow);
+
+            if ($headerInfo['blocking']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Header Excel belum valid. Periksa nama kolom dan pastikan tidak ada kolom wajib yang hilang atau duplikat.',
+                    'header_diagnostics' => $headerInfo,
+                ], 422);
+            }
+
             $existingInDb = Metadata::pluck('nama')
                 ->map(fn($n) => $this->dedupKey($n))
                 ->flip()->all();
@@ -464,6 +561,7 @@ class MetadataImportController extends Controller
             DB::transaction(function () use (
                 $filePath, $skipExisting, $defaultProdusenId,
                 $userId, $now, $totalRows,
+                $headerRow, $headerInfo,
                 $klasifikasiMap,
                 &$existingInDb,
                 &$seen, &$inserted, &$skipped, &$toInsert,
@@ -483,7 +581,7 @@ class MetadataImportController extends Controller
                     $spreadsheet->disconnectWorksheets();
                     unset($spreadsheet, $reader);
 
-                    if (!empty($chunkRows) && $chunkRows[0][0] !== null && !is_numeric($chunkRows[0][0])) {
+                    if (!empty($chunkRows) && array_values($chunkRows[0]) === array_values($headerRow)) {
                         array_shift($chunkRows);
                     }
 
@@ -491,7 +589,7 @@ class MetadataImportController extends Controller
                     foreach ($chunkRows as $raw) {
                         if (empty(array_filter($raw, fn($v) => $v !== null && $v !== ''))) { $rowIndex++; continue; }
 
-                        $r   = $this->parseRow($raw);
+                        $r   = $this->parseRow($raw, $headerInfo['map']);
                         $key = $this->dedupKey($r['nama']);
 
                         if (isset($seen[$key])) { $skipped++; $rowIndex++; continue; }
@@ -499,7 +597,7 @@ class MetadataImportController extends Controller
 
                         if ($skipExisting && isset($existingInDb[$key])) { $skipped++; $rowIndex++; continue; }
 
-                        $klasifikasiInput = $raw[5] ?? null;
+                        $klasifikasiInput = $r['_klasifikasi_input'];
                         $klasifikasiProblem = $this->klasifikasiIssue(
                             $klasifikasiInput,
                             $r['klasifikasi_id'],
@@ -885,16 +983,114 @@ class MetadataImportController extends Controller
         return $count;
     }
 
+    private function readImportHeader(string $filePath): array
+    {
+        $reader = IOFactory::createReaderForFile($filePath);
+        $reader->setReadFilter(new ChunkReadFilter(1, 1));
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($filePath);
+        $header = $spreadsheet->getActiveSheet()->toArray(null, true, true, false)[0] ?? [];
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet, $reader);
+
+        return $header;
+    }
+
+    private function inspectImportHeaders(array $headerRow): array
+    {
+        $map = [];
+        $issues = [];
+
+        foreach ($headerRow as $index => $label) {
+            $label = trim((string) $label);
+            if ($label === '') {
+                continue;
+            }
+
+            $key = mb_strtolower(trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $label)));
+            if (!isset(self::IMPORT_HEADER_ALIASES[$key])) {
+                $issues[] = [
+                    'column' => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1),
+                    'value' => $label,
+                    'reason' => 'Header tidak dikenali. Periksa nama kolom atau hapus kolom yang tidak digunakan.',
+                    'type' => 'unknown',
+                ];
+                continue;
+            }
+
+            $field = self::IMPORT_HEADER_ALIASES[$key];
+            if (isset($map[$field])) {
+                $issues[] = [
+                    'column' => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1),
+                    'value' => $label,
+                    'reason' => 'Header ini duplikat untuk kolom ' . $field . '.',
+                    'type' => 'duplicate',
+                ];
+                continue;
+            }
+
+            $map[$field] = $index;
+        }
+
+        foreach (self::IMPORT_REQUIRED_HEADERS as $field => $label) {
+            if (!array_key_exists($field, $map)) {
+                $issues[] = [
+                    'column' => '—',
+                    'value' => $label,
+                    'reason' => 'Kolom wajib tidak ditemukan. Tambahkan header ini ke baris pertama Excel.',
+                    'type' => 'missing',
+                ];
+            }
+        }
+
+        $actualOrder = array_keys($map);
+        $expectedOrder = array_values(array_filter(
+            self::IMPORT_HEADER_ORDER,
+            fn ($field) => array_key_exists($field, $map)
+        ));
+        $orderMatches = $actualOrder === $expectedOrder;
+        if (!$orderMatches) {
+            $issues[] = [
+                'column' => '—',
+                'value' => 'Urutan kolom',
+                'reason' => 'Urutan berbeda dari template. Data tetap dibaca berdasarkan nama header; urutan yang disarankan ditampilkan di bawah.',
+                'type' => 'order',
+            ];
+        }
+
+        $blocking = count(array_filter(
+            $issues,
+            fn ($issue) => in_array($issue['type'], ['unknown', 'duplicate', 'missing'], true)
+        )) > 0;
+
+        return [
+            'map' => $map,
+            'issues' => $issues,
+            'blocking' => $blocking,
+            'order_matches' => $orderMatches,
+            'expected_order' => array_values(array_map(
+                fn ($field) => array_search($field, self::IMPORT_HEADER_ALIASES, true) ?: $field,
+                self::IMPORT_HEADER_ORDER
+            )),
+        ];
+    }
+
     // ─────────────────────────────────────────────────────────────
     // HELPER: parseRow
     // ─────────────────────────────────────────────────────────────
-    private function parseRow(array $raw): array
+    private function parseRow(array $raw, array $columnMap = []): array
     {
         $r = [];
-        foreach (self::COL as $i => $field) {
-            $r[$field] = $raw[$i] ?? null;
+        foreach (self::COL as $field) {
+            $r[$field] = null;
+        }
+        $r['tahun_data_tersedia'] = null;
+
+        foreach ($columnMap ?: array_flip(self::COL) as $field => $index) {
+            $r[$field] = $raw[$index] ?? null;
         }
 
+        $r['_klasifikasi_input'] = $r['klasifikasi_id'];
         foreach (self::STRING_DASH as $field) {
             if (is_null($r[$field]) || trim((string)$r[$field]) === '') {
                 $r[$field] = '-';
@@ -963,6 +1159,7 @@ class MetadataImportController extends Controller
             'tipe_data'              => $r['tipe_data'],
             'satuan_data'            => $r['satuan_data'],
             'tahun_mulai_data'       => $r['tahun_mulai_data'],
+            'tahun_data_tersedia'   => $r['tahun_data_tersedia'],
 
             'frekuensi_penerbitan'   => $r['frekuensi_penerbitan'],
             'tahun_pertama_rilis'    => is_numeric($r['tahun_pertama_rilis'])       ? (int)$r['tahun_pertama_rilis']       : null,
