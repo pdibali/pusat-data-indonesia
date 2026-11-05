@@ -61,7 +61,7 @@ class TemplateProducerSourceTest extends TestCase
         $payload = [
             'tampilan_id' => $template->tampilan_id,
             'frekuensi' => 'tahunan',
-            'year_from' => 2025,
+            'year_from' => 2024,
             'year_to' => 2025,
         ];
         $this->actingAs($ids['user']);
@@ -115,6 +115,8 @@ class TemplateProducerSourceTest extends TestCase
                 'PT PLN (Persero) Unit Induk Distribusi Bali',
                 $sheet->getCell($producerColumn.'3')->getValue()
             );
+            $this->assertSame(0, $sheet->getCell('C3')->getValue());
+            $this->assertSame(100.0, $sheet->getCell('D3')->getValue());
             $this->assertSame('Rujukan Statistik', $sheet->getCell($referenceColumn.'3')->getValue());
             $informasiDataLabels = array_column(
                 $informasiDataSheet->rangeToArray('A1:A30', null, true, false),

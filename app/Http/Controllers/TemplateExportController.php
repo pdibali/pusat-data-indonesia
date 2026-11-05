@@ -457,12 +457,12 @@ class TemplateExportController extends Controller
 
                     if ($val !== null && $val !== '') {
                         $ws->setCellValue("{$colLetter}{$r}", (float) $val);
-                        $ws->getStyle("{$colLetter}{$r}")->getNumberFormat()
-                            ->setFormatCode('#,##0.##');
                     } else {
-                        $ws->setCellValue("{$colLetter}{$r}", '-');
+                        $ws->setCellValue("{$colLetter}{$r}", 0);
                     }
 
+                    $ws->getStyle("{$colLetter}{$r}")->getNumberFormat()
+                        ->setFormatCode('#,##0.##');
                     $ws->getStyle("{$colLetter}{$r}")->applyFromArray([
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
                         'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
