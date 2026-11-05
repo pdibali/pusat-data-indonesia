@@ -563,14 +563,40 @@
                         </p>
                     </div>
 
-                    <div id="produsenImportWarning" class="hidden rounded-lg p-4 text-sm"
-                        style="background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;">
-                        <p class="font-semibold flex items-center gap-2 mb-1">
-                            <i class="fas fa-triangle-exclamation"></i>
-                            Produsen Belum Valid
-                        </p>
-                        <p id="produsenImportWarningDetail" class="text-xs"></p>
-                        <p class="text-xs mt-1">Gunakan ID atau nama produsen yang terdaftar. Pisahkan beberapa produsen dalam satu sel dengan tanda titik koma (;).</p>
+                    <div id="produsenImportWarning" class="hidden rounded-xl overflow-hidden"
+                        style="border:1px solid #fed7aa; color:#9a3412;">
+                        <div class="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer select-none"
+                            style="background:#fff7ed;" onclick="toggleSection('produsen')">
+                            <i class="fas fa-triangle-exclamation shrink-0" style="color:#c2410c;"></i>
+                            <p class="text-sm font-semibold flex-1">Produsen Belum Valid</p>
+                            <span id="produsenImportWarningBadge"
+                                class="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+                                style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa;"></span>
+                            <svg id="produsenImportWarningChevron" class="w-4 h-4 shrink-0 transition-transform duration-200"
+                                style="color:#c2410c;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M4 6l4 4 4-4"/>
+                            </svg>
+                        </div>
+                        <div id="produsenImportWarningBody" class="hidden" style="border-top:1px solid #fed7aa;">
+                            <div class="px-4 py-2.5 text-xs" style="background:#fffaf5;">
+                                <p id="produsenImportWarningDetail"></p>
+                                <p class="mt-1">Gunakan ID atau nama produsen yang terdaftar. Pisahkan beberapa produsen dalam satu sel dengan tanda titik koma (;).</p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead style="background:#fff7ed; color:#9a3412;">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-medium w-28">Baris Excel</th>
+                                            <th class="px-3 py-2 text-left font-medium">Produsen (Excel)</th>
+                                            <th class="px-3 py-2 text-left font-medium">Keterangan masalah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="produsenImportWarningTableBody" class="divide-y divide-orange-100"></tbody>
+                                </table>
+                            </div>
+                            <div id="produsenImportWarningPager"
+                                class="hidden w-full flex items-center justify-center gap-1.5 py-2 text-xs text-orange-700 border-t border-orange-100"></div>
+                        </div>
                     </div>
 
                     <div id="errorSection" class="hidden rounded-xl overflow-hidden border border-red-200">
@@ -1567,6 +1593,7 @@
         sectionState.err  = { data: [], page: 0 };
         sectionState.dup  = { data: [], page: 0 };
         sectionState.meta = { data: [], page: 0 };
+        sectionState.produsen = { data: [], page: 0 };
         sectionState.satuan = { data: [], page: 0 };            
         sectionState.unit   = { data: [], page: 0, includeState: {}, markState: {} };
     }
@@ -1623,10 +1650,14 @@
         const invalidMetaCount = (json.invalid_metadata || []).length;
         const invalidProdusen = json.invalid_produsen || [];
         const produsenWarning = document.getElementById('produsenImportWarning');
+        sectionState.produsen = { data: invalidProdusen, page: 0 };
         if (invalidProdusen.length > 0) {
             document.getElementById('produsenImportWarningDetail').textContent =
                 `${invalidProdusen.length} baris memiliki produsen kosong atau tidak cocok dengan data produsen di sistem.`;
+            document.getElementById('produsenImportWarningBadge').textContent = `${invalidProdusen.length} baris`;
             produsenWarning.classList.remove('hidden');
+            document.getElementById('produsenImportWarningBody').classList.add('hidden');
+            document.getElementById('produsenImportWarningChevron').style.transform = '';
         } else {
             produsenWarning.classList.add('hidden');
         }
@@ -1903,6 +1934,7 @@
             err:  { body: 'errBody',  chevron: 'errChevron'  },
             dup:  { body: 'dupBody',  chevron: 'dupChevron'  },
             meta: { body: 'metaBody', chevron: 'metaChevron' },
+            produsen: { body: 'produsenImportWarningBody', chevron: 'produsenImportWarningChevron' },
             out:  { body: 'outBody',  chevron: 'outChevron'  },
             satuan: { body: 'satuanBody', chevron: 'satuanChevron' },
             unit: { body: 'unitBody', chevron: 'unitChevron' },
@@ -2215,7 +2247,7 @@
         saveUnitConflictState();
 
         ROWS_PER_PAGE = parseInt(n) || 5;
-        const bodies = { err:'errBody', dup:'dupBody', meta:'metaBody', out:'outBody', satuan:'satuanBody', unit:'unitBody' };
+        const bodies = { err:'errBody', dup:'dupBody', meta:'metaBody', produsen:'produsenImportWarningBody', out:'outBody', satuan:'satuanBody', unit:'unitBody' };
         Object.entries(bodies).forEach(([type, id]) => {
             sectionState[type].page = 0;
             const el = document.getElementById(id);
@@ -2237,6 +2269,15 @@
                     <td class="px-3 py-2 text-red-700">${esc(e.message)}</td>
                 </tr>`).join('');
             renderPagination('err', 'errPager');
+
+        } else if (type === 'produsen') {
+            document.getElementById('produsenImportWarningTableBody').innerHTML = rows.map((row, i) => `
+                <tr class="${i % 2 !== 0 ? 'bg-orange-50' : ''}">
+                    <td class="px-3 py-2 font-mono whitespace-nowrap">Baris ${esc(String(row.row ?? '-'))}</td>
+                    <td class="px-3 py-2 break-all">${esc(row.value)}</td>
+                    <td class="px-3 py-2">${esc(row.message)}</td>
+                </tr>`).join('');
+            renderPagination('produsen', 'produsenImportWarningPager');
 
         } else if (type === 'dup') {
             document.getElementById('dupTableBody').innerHTML = rows.map((r, i) => `
