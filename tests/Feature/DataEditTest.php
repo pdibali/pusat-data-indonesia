@@ -186,6 +186,13 @@ class DataEditTest extends TestCase
             ->assertSee('name="rujukan_id"', false)
             ->assertSee('name="produsen_id"', false)
             ->assertSee('value="'.$produsen->produsen_id.'"', false);
+        $bulkPage = $this->actingAs($user)->get(route('data.bulk_update'));
+        $bulkPage->assertOk()
+            ->assertSee('name="update_scope"', false)
+            ->assertSee('Hanya produsen / daftar produsen')
+            ->assertSee('Hanya data (nilai periode)')
+            ->assertSee('Hanya rujukan')
+            ->assertSee('Update semua');
         $this->actingAs($user)->get(route('data.index'))
             ->assertOk()
             ->assertDontSee('Bulk Update Data');
@@ -377,6 +384,7 @@ class DataEditTest extends TestCase
             );
             $previewResponse = $this->actingAs($user)->post(route('data.bulk_update.preview'), [
                 'file_excel' => $uploadedFile,
+                'update_scope' => 'all',
             ]);
             $previewResponse
                 ->assertOk()
@@ -430,6 +438,111 @@ class DataEditTest extends TestCase
                 'workflow_status' => Data::WORKFLOW_APPROVED,
             ]);
             $this->assertSame(2025, $bulkTime->year);
+
+            $applyBulkScope = function (string $scope, array $rowValues) use (
+                $user,
+                $metadata,
+                $newMetadataUnit,
+                $newReferenceUnit,
+                $location,
+                $newReference,
+                $manualProducer,
+                $time,
+            ): void {
+                $spreadsheet = new Spreadsheet;
+                $sheet = $spreadsheet->getActiveSheet();
+                foreach ([
+                    'A3' => 'metadata_id',
+                    'B3' => 'nama_metadata',
+                    'C3' => 'satuan_metadata',
+                    'D3' => 'satuan_rujukan',
+                    'E3' => 'location_id',
+                    'F3' => 'nama_wilayah',
+                    'G3' => 'rujukan_id',
+                    'H3' => 'produsen_id',
+                    'I3' => (string) $time->year,
+                    'A4' => $metadata->metadata_id,
+                    'B4' => $metadata->nama,
+                    'C4' => $newMetadataUnit->nama_satuan,
+                    'D4' => $newReferenceUnit->simbol,
+                    'E4' => $location->location_id,
+                    'F4' => $location->nama_wilayah,
+                    'G4' => $newReference->rujukan_id,
+                    'H4' => $manualProducer->produsen_id,
+                ] as $cell => $value) {
+                    $sheet->setCellValue($cell, $value);
+                }
+                foreach ($rowValues as $cell => $value) {
+                    $sheet->setCellValue($cell, $value);
+                }
+
+                $path = tempnam(sys_get_temp_dir(), 'data-bulk-scope-');
+                try {
+                    (new Xlsx($spreadsheet))->save($path);
+                    $uploadedFile = new \Illuminate\Http\UploadedFile(
+                        $path,
+                        'bulk-update.xlsx',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        null,
+                        true,
+                    );
+                    $previewResponse = $this->actingAs($user)->post(route('data.bulk_update.preview'), [
+                        'file_excel' => $uploadedFile,
+                        'update_scope' => $scope,
+                    ]);
+                    $previewResponse->assertOk();
+                    preg_match('/name="token" value="([^"]+)"/', $previewResponse->getContent(), $matches);
+                    $this->assertNotEmpty($matches[1] ?? null);
+                    $this->actingAs($user)->post(route('data.bulk_update.apply'), [
+                        'token' => $matches[1],
+                    ])->assertRedirect(route('data.bulk_update'));
+                } finally {
+                    unlink($path);
+                }
+            };
+
+            $applyBulkScope('producers', [
+                'G4' => $newReference->rujukan_id,
+                'H4' => $manualProducer->produsen_id,
+            ]);
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => '123.50',
+                'rujukan_id' => $newReference->rujukan_id,
+                'satuan_id' => $newMetadataUnit->satuan_id,
+                'satuan_asal_id' => $newReferenceUnit->satuan_id,
+            ]);
+            $this->assertSame(
+                [$manualProducer->produsen_id],
+                $datum->fresh()->produsens()->pluck('produsen_data.produsen_id')->map(fn ($id) => (int) $id)->all()
+            );
+
+            $applyBulkScope('reference', [
+                'D4' => $oldReferenceUnit->simbol,
+                'G4' => $rujukan->rujukan_id,
+            ]);
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => '123.50',
+                'rujukan_id' => $rujukan->rujukan_id,
+                'satuan_id' => $newMetadataUnit->satuan_id,
+                'satuan_asal_id' => $oldReferenceUnit->satuan_id,
+                'produsen_id' => $manualProducer->produsen_id,
+            ]);
+
+            $applyBulkScope('data', [
+                'D4' => $oldReferenceUnit->simbol,
+                'G4' => $rujukan->rujukan_id,
+                'I4' => 456,
+            ]);
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => '456.00',
+                'rujukan_id' => $rujukan->rujukan_id,
+                'satuan_id' => $newMetadataUnit->satuan_id,
+                'satuan_asal_id' => $oldReferenceUnit->satuan_id,
+                'produsen_id' => $manualProducer->produsen_id,
+            ]);
 
             $unchangedDatum->rujukan_id = $newReference->rujukan_id;
             $unchangedDatum->save();

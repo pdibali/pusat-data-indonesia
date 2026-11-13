@@ -533,14 +533,20 @@ class DataController extends Controller
 
     public function previewBulkUpdate(Request $request, DataBulkUpdateService $bulkUpdate)
     {
-        $request->validate([
+        $validated = $request->validate([
             'file_excel' => 'required|file|mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/octet-stream,application/zip|max:10240',
+            'update_scope' => 'required|in:producers,data,reference,all',
         ], [
             'file_excel.required' => 'File Excel wajib diunggah.',
             'file_excel.max' => 'Ukuran file maksimal 10MB.',
+            'update_scope.required' => 'Pilih bagian data yang akan diperbarui.',
+            'update_scope.in' => 'Pilihan bagian data tidak valid.',
         ]);
 
-        $preview = $bulkUpdate->preview($request->file('file_excel')->getRealPath());
+        $preview = $bulkUpdate->preview(
+            $request->file('file_excel')->getRealPath(),
+            $validated['update_scope'],
+        );
         $token = (string) Str::uuid();
         Cache::put(
             $this->bulkUpdateCacheKey($token),

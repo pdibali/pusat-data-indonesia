@@ -29,7 +29,7 @@ class DataBulkUpdateService
 
     public function __construct(private readonly AuditTrailService $auditTrail) {}
 
-    public function preview(string $filePath): array
+    public function preview(string $filePath, string $updateScope = 'all'): array
     {
         [$columns, $periods, $rows] = $this->readWorkbook($filePath);
         $timeIds = $this->resolveTimeIds($periods);
@@ -48,20 +48,33 @@ class DataBulkUpdateService
         foreach ($rows as $rowNumber => $row) {
             $currentRowErrors = [];
             $values = [];
-            foreach ($periods as $period) {
-                $value = $row[$period['index']] ?? null;
-                if ($value === null || trim((string) $value) === '') {
-                    continue;
-                }
-                if (! is_numeric($value) || ! is_finite((float) $value)) {
-                    $currentRowErrors[] = "Baris {$rowNumber}, periode {$period['label']}: nilai harus berupa angka.";
+            if (in_array($updateScope, ['data', 'all'], true)) {
+                foreach ($periods as $period) {
+                    $value = $row[$period['index']] ?? null;
+                    if ($value === null || trim((string) $value) === '') {
+                        continue;
+                    }
+                    if (! is_numeric($value) || ! is_finite((float) $value)) {
+                        $currentRowErrors[] = "Baris {$rowNumber}, periode {$period['label']}: nilai harus berupa angka.";
 
-                    continue;
+                        continue;
+                    }
+                    $values[$period['label']] = number_format((float) $value, 2, '.', '');
                 }
-                $values[$period['label']] = number_format((float) $value, 2, '.', '');
             }
 
-            if ($values === []) {
+            $rujukanRaw = $this->getColumnValue($row, $columns, 'rujukan_id');
+            $produsenRaw = $this->getColumnValue($row, $columns, 'produsen_id');
+            $satuanMetadataRaw = $this->getColumnValue($row, $columns, 'satuan_metadata');
+            $satuanRujukanRaw = $this->getColumnValue($row, $columns, 'satuan_rujukan');
+            $rujukanText = trim((string) ($rujukanRaw ?? ''));
+            $produsenText = trim((string) ($produsenRaw ?? ''));
+            $needsTargetValue = match ($updateScope) {
+                'producers' => $produsenText !== '',
+                'reference' => $rujukanText !== '',
+                default => $values !== [],
+            };
+            if (! $needsTargetValue) {
                 $rowErrors = array_merge($rowErrors, $currentRowErrors);
 
                 continue;
@@ -69,10 +82,6 @@ class DataBulkUpdateService
 
             $metadataId = $this->readId($row[$columns['metadata_id']] ?? null);
             $locationId = $this->readId($row[$columns['location_id']] ?? null);
-            $rujukanRaw = $this->getColumnValue($row, $columns, 'rujukan_id');
-            $produsenRaw = $this->getColumnValue($row, $columns, 'produsen_id');
-            $satuanMetadataRaw = $this->getColumnValue($row, $columns, 'satuan_metadata');
-            $satuanRujukanRaw = $this->getColumnValue($row, $columns, 'satuan_rujukan');
 
             if ($metadataId === null || $locationId === null) {
                 $currentRowErrors[] = "Baris {$rowNumber}: metadata_id dan location_id wajib berisi ID valid.";
@@ -80,8 +89,6 @@ class DataBulkUpdateService
 
                 continue;
             }
-            $rujukanText = trim((string) ($rujukanRaw ?? ''));
-            $produsenText = trim((string) ($produsenRaw ?? ''));
             $rujukanId = $rujukanText === '' ? null : $this->readOptionalId($rujukanRaw);
             $produsenResolution = $produsenText === ''
                 ? ['ids' => [], 'invalid' => []]
@@ -91,7 +98,6 @@ class DataBulkUpdateService
             sort($produsenIds);
             if ($rujukanText !== '' && $rujukanId === null) {
                 $currentRowErrors[] = "Baris {$rowNumber}: rujukan_id harus berisi ID valid atau dikosongkan.";
-
             }
             if ($produsenText !== '' && ($produsenIds === [] || $produsenResolution['invalid'] !== [])) {
                 $currentRowErrors[] = "Baris {$rowNumber}: produsen_id '".implode('; ', $produsenResolution['invalid'])."' tidak ditemukan. Gunakan ID atau nama produsen terdaftar, pisahkan beberapa produsen dengan ';'.";
@@ -112,7 +118,14 @@ class DataBulkUpdateService
             }
 
             $rowCandidates = [];
-            foreach ($values as $label => $value) {
+            $targetPeriods = in_array($updateScope, ['data', 'all'], true)
+                ? array_values(array_filter($periods, fn ($period) => array_key_exists($period['label'], $values)))
+                : $periods;
+            foreach ($targetPeriods as $period) {
+                $label = $period['label'];
+                if (in_array($updateScope, ['data', 'all'], true) && ! array_key_exists($label, $values)) {
+                    continue;
+                }
                 $timeId = $timeIds[$label] ?? null;
                 if ($timeId === null) {
                     $currentRowErrors[] = "Baris {$rowNumber}, periode {$label}: periode tidak tersedia pada dimensi waktu.";
@@ -141,8 +154,10 @@ class DataBulkUpdateService
                     'location_id' => $locationId,
                     'time_id' => $timeId,
                     'period_label' => $label,
-                    'new_value' => $value,
                 ];
+                if (in_array($updateScope, ['data', 'all'], true)) {
+                    $candidate['new_value'] = $values[$label];
+                }
                 if ($rujukanText !== '') {
                     $candidate['rujukan_id'] = $rujukanId;
                 }
@@ -155,6 +170,19 @@ class DataBulkUpdateService
                 }
                 if ($satuanRujukan['provided']) {
                     $candidate['satuan_asal_id'] = $satuanRujukan['id'];
+                }
+                $candidate['match_fields'] = [];
+                if ($rujukanText !== '' && $updateScope !== 'reference') {
+                    $candidate['match_fields']['rujukan_id'] = $rujukanId;
+                }
+                if ($produsenText !== '' && $updateScope !== 'producers') {
+                    $candidate['match_fields']['produsen_ids'] = $produsenIds;
+                }
+                if ($satuanMetadata['provided']) {
+                    $candidate['match_fields']['satuan_id'] = $satuanMetadata['id'];
+                }
+                if ($satuanRujukan['provided']) {
+                    $candidate['match_fields']['satuan_asal_id'] = $satuanRujukan['id'];
                 }
                 $rowCandidates[$key] = $candidate;
             }
@@ -265,14 +293,20 @@ class DataBulkUpdateService
                         'satuan_id' => $record->satuan_id === null ? null : (int) $record->satuan_id,
                         'satuan_asal_id' => $record->satuan_asal_id === null ? null : (int) $record->satuan_asal_id,
                     ];
-                    $newFields = ['number_value' => $candidate['new_value']];
-                    foreach (['rujukan_id', 'produsen_id', 'satuan_id', 'satuan_asal_id'] as $field) {
+                    $newFields = [];
+                    if (array_key_exists('new_value', $candidate)) {
+                        $newFields['number_value'] = $candidate['new_value'];
+                    }
+                    $fieldsToUpdate = match ($updateScope) {
+                        'producers' => ['produsen_id', 'produsen_ids'],
+                        'data' => [],
+                        'reference' => ['rujukan_id', 'satuan_asal_id'],
+                        default => ['rujukan_id', 'produsen_id', 'satuan_id', 'satuan_asal_id', 'produsen_ids'],
+                    };
+                    foreach ($fieldsToUpdate as $field) {
                         if (array_key_exists($field, $candidate)) {
                             $newFields[$field] = $candidate[$field];
                         }
-                    }
-                    if (array_key_exists('produsen_ids', $candidate)) {
-                        $newFields['produsen_ids'] = $candidate['produsen_ids'];
                     }
 
                     $fieldChanges = [];
@@ -296,7 +330,7 @@ class DataBulkUpdateService
                         'old_fields' => $oldFields,
                         'new_fields' => $newFields,
                         'old_value' => $oldFields['number_value'],
-                        'new_value' => $newFields['number_value'],
+                        'new_value' => $newFields['number_value'] ?? null,
                         'field_changes' => $this->labelChanges($fieldChanges, $record),
                         'metadata' => $record->nama_metadata ?? (string) $record->metadata_id,
                         'location' => $record->nama_wilayah ?? (string) $record->location_id,
@@ -314,6 +348,7 @@ class DataBulkUpdateService
             'unchanged_count' => count($matchedKeys) - count($changes),
             'unmatched_count' => count($candidates) - count($matchedKeys),
             'errors' => $rowErrors,
+            'update_scope' => $updateScope,
         ];
     }
 
@@ -432,17 +467,17 @@ class DataBulkUpdateService
             'satuan_id' => 'satuan_id',
             'satuan_asal_id' => 'satuan_asal_id',
         ] as $candidateField => $recordField) {
-            if (! array_key_exists($candidateField, $candidate)) {
+            if (! array_key_exists($candidateField, $candidate['match_fields'])) {
                 continue;
             }
             $recordValue = $record->{$recordField} === null ? null : (int) $record->{$recordField};
-            if ($recordValue !== $candidate[$candidateField]) {
+            if ($recordValue !== $candidate['match_fields'][$candidateField]) {
                 return false;
             }
         }
         if (
-            array_key_exists('produsen_ids', $candidate)
-            && array_values($record->_produsen_ids ?? []) !== $candidate['produsen_ids']
+            array_key_exists('produsen_ids', $candidate['match_fields'])
+            && array_values($record->_produsen_ids ?? []) !== $candidate['match_fields']['produsen_ids']
         ) {
             return false;
         }

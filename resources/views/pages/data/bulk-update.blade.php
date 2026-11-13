@@ -11,11 +11,11 @@
         <div class="mb-6">
             <h1 class="text-xl font-bold text-gray-800">Bulk Update Data</h1>
             <p class="text-sm text-gray-500 mt-1">
-                Unggah template Excel input data. Sistem membandingkan nilai periode dengan data tersimpan dan menampilkan perubahan sebelum diterapkan.
+                Pilih bagian yang ingin diperbarui, lalu unggah template Excel. Sistem menampilkan perubahan sebelum diterapkan.
             </p>
             <p class="text-xs text-gray-400 mt-2">
                 Gunakan template dari halaman <a href="{{ route('metadata.index') }}" class="text-sky-600 hover:underline">Metadata</a>.
-                Baris yang belum ada akan dilewati. Sel periode, rujukan, produsen, atau satuan yang kosong tidak mengubah nilai tersimpan.
+                Baris yang belum ada akan dilewati. Sel yang kosong tidak mengubah nilai tersimpan.
                 Untuk beberapa produsen, isi kolom <code>produsen_id</code> dengan ID/nama produsen dipisahkan titik koma (;).
                 Baris yang mengandung error dilewati; baris valid tetap dapat diterapkan.
             </p>
@@ -40,6 +40,14 @@
         <form action="{{ route('data.bulk_update.preview') }}" method="POST" enctype="multipart/form-data"
               class="rounded-lg border border-gray-200 bg-gray-50 p-5">
             @csrf
+            <label for="update_scope" class="block text-sm font-semibold text-gray-700 mb-2">Bagian yang diperbarui</label>
+            <select id="update_scope" name="update_scope" required
+                    class="mb-4 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                <option value="producers" @selected(old('update_scope', 'all') === 'producers')>Hanya produsen / daftar produsen</option>
+                <option value="data" @selected(old('update_scope', 'all') === 'data')>Hanya data (nilai periode)</option>
+                <option value="reference" @selected(old('update_scope', 'all') === 'reference')>Hanya rujukan</option>
+                <option value="all" @selected(old('update_scope', 'all') === 'all')>Update semua</option>
+            </select>
             <label for="file_excel" class="block text-sm font-semibold text-gray-700 mb-2">File Excel</label>
             <input id="file_excel" name="file_excel" type="file" accept=".xlsx,.xls" required
                    class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-700">
@@ -53,6 +61,12 @@
         @isset($preview)
             <section class="mt-7">
                 <h2 class="text-lg font-bold text-gray-800">Hasil Perbandingan</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Mode:
+                    <span class="font-semibold text-gray-700">
+                        {{ ['producers' => 'Hanya produsen / daftar produsen', 'data' => 'Hanya data (nilai periode)', 'reference' => 'Hanya rujukan', 'all' => 'Update semua'][$preview['update_scope']] ?? 'Update semua' }}
+                    </span>
+                </p>
                 <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
                         <p class="text-xs text-amber-700">Perubahan ditemukan</p>
