@@ -16,6 +16,7 @@
             <p class="text-xs text-gray-400 mt-2">
                 Gunakan template dari halaman <a href="{{ route('metadata.index') }}" class="text-sky-600 hover:underline">Metadata</a>.
                 Baris yang belum ada akan dilewati. Sel yang kosong tidak mengubah nilai tersimpan.
+                Pada mode produsen atau rujukan, nilai periode yang diisi hanya membantu mencocokkan data dan tidak ikut diubah.
                 Untuk beberapa produsen, isi kolom <code>produsen_id</code> dengan ID/nama produsen dipisahkan titik koma (;).
                 Baris yang mengandung error dilewati; baris valid tetap dapat diterapkan.
             </p>

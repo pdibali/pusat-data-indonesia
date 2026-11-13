@@ -48,19 +48,17 @@ class DataBulkUpdateService
         foreach ($rows as $rowNumber => $row) {
             $currentRowErrors = [];
             $values = [];
-            if (in_array($updateScope, ['data', 'all'], true)) {
-                foreach ($periods as $period) {
-                    $value = $row[$period['index']] ?? null;
-                    if ($value === null || trim((string) $value) === '') {
-                        continue;
-                    }
-                    if (! is_numeric($value) || ! is_finite((float) $value)) {
-                        $currentRowErrors[] = "Baris {$rowNumber}, periode {$period['label']}: nilai harus berupa angka.";
-
-                        continue;
-                    }
-                    $values[$period['label']] = number_format((float) $value, 2, '.', '');
+            foreach ($periods as $period) {
+                $value = $row[$period['index']] ?? null;
+                if ($value === null || trim((string) $value) === '') {
+                    continue;
                 }
+                if (! is_numeric($value) || ! is_finite((float) $value)) {
+                    $currentRowErrors[] = "Baris {$rowNumber}, periode {$period['label']}: nilai harus berupa angka.";
+
+                    continue;
+                }
+                $values[$period['label']] = number_format((float) $value, 2, '.', '');
             }
 
             $rujukanRaw = $this->getColumnValue($row, $columns, 'rujukan_id');
@@ -181,8 +179,11 @@ class DataBulkUpdateService
                 if ($satuanMetadata['provided']) {
                     $candidate['match_fields']['satuan_id'] = $satuanMetadata['id'];
                 }
-                if ($satuanRujukan['provided']) {
+                if ($satuanRujukan['provided'] && $updateScope !== 'reference') {
                     $candidate['match_fields']['satuan_asal_id'] = $satuanRujukan['id'];
+                }
+                if (in_array($updateScope, ['producers', 'reference'], true) && array_key_exists($label, $values)) {
+                    $candidate['match_fields']['number_value'] = $values[$label];
                 }
                 $rowCandidates[$key] = $candidate;
             }
@@ -432,7 +433,7 @@ class DataBulkUpdateService
                 fn ($record) => $this->candidateMatchesProvidedFields($candidate, $record)
             ));
             if (count($matches) > 1) {
-                $errors[] = "Baris {$candidate['row_number']}, periode {$candidate['period_label']}: cocok dengan beberapa data. Perjelas rujukan/produsen/satuan pada Excel.";
+                $errors[] = "Baris {$candidate['row_number']}, periode {$candidate['period_label']}: cocok dengan beberapa data. Perjelas nilai periode atau rujukan/produsen/satuan pada Excel.";
                 unset($remainingCandidates[$candidateIndex]);
 
                 continue;
@@ -453,7 +454,7 @@ class DataBulkUpdateService
             $assignments[] = [$remainingCandidates[0], $remainingRecords[0]];
         } elseif ($remainingCandidates !== [] && $remainingRecords !== []) {
             foreach ($remainingCandidates as $candidate) {
-                $errors[] = "Baris {$candidate['row_number']}, periode {$candidate['period_label']}: tidak dapat dipasangkan secara unik karena terdapat beberapa data sumber untuk metadata/lokasi/periode tersebut.";
+                $errors[] = "Baris {$candidate['row_number']}, periode {$candidate['period_label']}: tidak dapat dipasangkan secara unik karena terdapat beberapa data sumber untuk metadata/lokasi/periode tersebut. Perjelas nilai periode atau rujukan/produsen/satuan pada Excel.";
             }
         }
 
@@ -462,6 +463,12 @@ class DataBulkUpdateService
 
     private function candidateMatchesProvidedFields(array $candidate, object $record): bool
     {
+        if (
+            array_key_exists('number_value', $candidate['match_fields'])
+            && $this->normalizeStoredValue($record->number_value) !== $candidate['match_fields']['number_value']
+        ) {
+            return false;
+        }
         foreach ([
             'rujukan_id' => 'rujukan_id',
             'satuan_id' => 'satuan_id',

@@ -439,6 +439,21 @@ class DataEditTest extends TestCase
             ]);
             $this->assertSame(2025, $bulkTime->year);
 
+            $duplicateSourceDatum = Data::create([
+                'user_id' => $user->user_id,
+                'metadata_id' => $metadata->metadata_id,
+                'location_id' => $location->location_id,
+                'time_id' => $time->time_id,
+                'rujukan_id' => $newReference->rujukan_id,
+                'produsen_id' => $newProducer->produsen_id,
+                'satuan_id' => $newMetadataUnit->satuan_id,
+                'satuan_asal_id' => $newReferenceUnit->satuan_id,
+                'number_value' => 999,
+                'status' => Data::STATUS_AVAILABLE,
+                'workflow_status' => Data::WORKFLOW_APPROVED,
+                'date_inputed' => now(),
+            ]);
+
             $applyBulkScope = function (string $scope, array $rowValues) use (
                 $user,
                 $metadata,
@@ -492,7 +507,7 @@ class DataEditTest extends TestCase
                     ]);
                     $previewResponse->assertOk();
                     preg_match('/name="token" value="([^"]+)"/', $previewResponse->getContent(), $matches);
-                    $this->assertNotEmpty($matches[1] ?? null);
+                    $this->assertNotEmpty($matches[1] ?? null, $previewResponse->getContent());
                     $this->actingAs($user)->post(route('data.bulk_update.apply'), [
                         'token' => $matches[1],
                     ])->assertRedirect(route('data.bulk_update'));
@@ -504,6 +519,7 @@ class DataEditTest extends TestCase
             $applyBulkScope('producers', [
                 'G4' => $newReference->rujukan_id,
                 'H4' => $manualProducer->produsen_id,
+                'I4' => 123.5,
             ]);
             $this->assertDatabaseHas('data', [
                 'id' => $datum->id,
@@ -516,6 +532,11 @@ class DataEditTest extends TestCase
                 [$manualProducer->produsen_id],
                 $datum->fresh()->produsens()->pluck('produsen_data.produsen_id')->map(fn ($id) => (int) $id)->all()
             );
+            $this->assertDatabaseHas('data', [
+                'id' => $duplicateSourceDatum->id,
+                'number_value' => '999.00',
+                'produsen_id' => $newProducer->produsen_id,
+            ]);
 
             $applyBulkScope('reference', [
                 'D4' => $oldReferenceUnit->simbol,
