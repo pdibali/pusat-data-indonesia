@@ -1675,7 +1675,7 @@ function _renderTable(d) {
                     ? parseFloat(val).toLocaleString('id-ID', {
                           minimumFractionDigits: 0, maximumFractionDigits: 2,
                       })
-                    : '<span class="text-gray-200 select-none">—</span>';
+                    : '0';
                 return `<td class="px-3 py-2.5 text-right font-mono text-xs
                                    border-r border-gray-100 whitespace-nowrap
                                    ${ci === 0 ? 'border-l border-gray-200' : ''}">
@@ -1847,7 +1847,7 @@ function _renderMobileCards(d) {
                 const val = row.values?.[c.label];
                 const fmt = (val !== null && val !== undefined && val !== '')
                     ? parseFloat(val).toLocaleString('id-ID', { minimumFractionDigits:0, maximumFractionDigits:2 })
-                    : '—';
+                    : '0';
                 return `<div class="meta-card-row">
                     <span class="text-gray-400">${_esc(c.label)}</span>
                     <span class="font-mono font-medium text-gray-700">${fmt}</span>
