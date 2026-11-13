@@ -458,7 +458,7 @@ class TemplateExportController extends Controller
                     if ($val !== null && $val !== '') {
                         $ws->setCellValue("{$colLetter}{$r}", (float) $val);
                     } else {
-                        $ws->setCellValue("{$colLetter}{$r}", 0);
+                        $ws->setCellValueExplicit("{$colLetter}{$r}", 'N/A', DataType::TYPE_STRING);
                     }
 
                     $ws->getStyle("{$colLetter}{$r}")->getNumberFormat()

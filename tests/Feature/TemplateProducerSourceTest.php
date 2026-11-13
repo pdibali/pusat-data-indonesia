@@ -19,6 +19,10 @@ class TemplateProducerSourceTest extends TestCase
     {
         $ids = $this->createDataWithDifferentReferenceAndDataProducers();
 
+        $this->actingAs($ids['user'])->get(route('data.index'))
+            ->assertOk()
+            ->assertSee(": 'N/A';", false);
+
         $response = $this->postJson(route('template.table_data_guest'), [
             'metadata_ids' => [$ids['metadata']],
             'metadata_location_ids' => json_encode([$ids['metadata'] => [$ids['location']]]),
@@ -115,7 +119,7 @@ class TemplateProducerSourceTest extends TestCase
                 'PT PLN (Persero) Unit Induk Distribusi Bali',
                 $sheet->getCell($producerColumn.'3')->getValue()
             );
-            $this->assertSame(0, $sheet->getCell('C3')->getValue());
+            $this->assertSame('N/A', $sheet->getCell('C3')->getValue());
             $this->assertSame(100.0, $sheet->getCell('D3')->getValue());
             $this->assertSame('Rujukan Statistik', $sheet->getCell($referenceColumn.'3')->getValue());
             $informasiDataLabels = array_column(
