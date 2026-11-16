@@ -72,6 +72,7 @@ class TemplateProducerSourceTest extends TestCase
 
         $pdfResponse = $this->post(route('template.export.pdf'), $payload);
         $pdfResponse->assertOk()
+            ->assertSeeText('N/A')
             ->assertViewHas('grouped', fn ($grouped) => $grouped[$ids['metadata']]['sumber']
                 === 'PT PLN (Persero) Unit Induk Distribusi Bali')
             ->assertViewHas('grouped', function ($grouped) use ($ids) {

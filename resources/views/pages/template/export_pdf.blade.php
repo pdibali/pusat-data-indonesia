@@ -258,7 +258,7 @@
                                     $val = $row['values'][$col['label']] ?? null;
                                     $fmt = ($val !== null && $val !== '')
                                         ? number_format((float)$val, 2, ',', '.')
-                                        : '0';
+                                        : 'N/A';
                                     // Jika bilangan bulat, hilangkan desimal
                                     if ($val !== null && $val !== '' && (float)$val == (int)$val) {
                                         $fmt = number_format((int)$val, 0, ',', '.');
