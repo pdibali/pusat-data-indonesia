@@ -53,6 +53,11 @@ class DataBulkUpdateService
                 if ($value === null || trim((string) $value) === '') {
                     continue;
                 }
+                if (strtoupper(trim((string) $value)) === 'N/A') {
+                    $values[$period['label']] = null;
+
+                    continue;
+                }
                 if (! is_numeric($value) || ! is_finite((float) $value)) {
                     $currentRowErrors[] = "Baris {$rowNumber}, periode {$period['label']}: nilai harus berupa angka.";
 
@@ -518,7 +523,7 @@ class DataBulkUpdateService
     private function displayFieldValue(string $field, mixed $value, object $record): string
     {
         if ($field === 'number_value') {
-            return $value === null ? 'Kosong' : number_format((float) $value, 2, '.', '');
+            return $value === null ? 'N/A' : number_format((float) $value, 2, '.', '');
         }
         if ($value === null) {
             return 'Kosong';

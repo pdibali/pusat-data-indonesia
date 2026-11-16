@@ -463,7 +463,7 @@ class DataEditTest extends TestCase
                 $newReference,
                 $manualProducer,
                 $time,
-            ): void {
+            ): \Illuminate\Testing\TestResponse {
                 $spreadsheet = new Spreadsheet;
                 $sheet = $spreadsheet->getActiveSheet();
                 foreach ([
@@ -507,10 +507,13 @@ class DataEditTest extends TestCase
                     ]);
                     $previewResponse->assertOk();
                     preg_match('/name="token" value="([^"]+)"/', $previewResponse->getContent(), $matches);
-                    $this->assertNotEmpty($matches[1] ?? null, $previewResponse->getContent());
-                    $this->actingAs($user)->post(route('data.bulk_update.apply'), [
-                        'token' => $matches[1],
-                    ])->assertRedirect(route('data.bulk_update'));
+                    if (isset($matches[1])) {
+                        $this->actingAs($user)->post(route('data.bulk_update.apply'), [
+                            'token' => $matches[1],
+                        ])->assertRedirect(route('data.bulk_update'));
+                    }
+
+                    return $previewResponse;
                 } finally {
                     unlink($path);
                 }
@@ -563,6 +566,38 @@ class DataEditTest extends TestCase
                 'satuan_id' => $newMetadataUnit->satuan_id,
                 'satuan_asal_id' => $oldReferenceUnit->satuan_id,
                 'produsen_id' => $manualProducer->produsen_id,
+            ]);
+
+            $clearValuePreview = $applyBulkScope('data', [
+                'D4' => $oldReferenceUnit->simbol,
+                'G4' => $rujukan->rujukan_id,
+                'I4' => 'N/A',
+            ]);
+            $clearValuePreview->assertSee('N/A');
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => null,
+            ]);
+
+            $unchangedNullPreview = $applyBulkScope('data', [
+                'D4' => $oldReferenceUnit->simbol,
+                'G4' => $rujukan->rujukan_id,
+                'I4' => 'N/A',
+            ]);
+            $unchangedNullPreview->assertSee('Tidak ada perubahan valid yang perlu diterapkan.');
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => null,
+            ]);
+
+            $applyBulkScope('data', [
+                'D4' => $oldReferenceUnit->simbol,
+                'G4' => $rujukan->rujukan_id,
+                'I4' => '',
+            ]);
+            $this->assertDatabaseHas('data', [
+                'id' => $datum->id,
+                'number_value' => null,
             ]);
 
             $unchangedDatum->rujukan_id = $newReference->rujukan_id;
