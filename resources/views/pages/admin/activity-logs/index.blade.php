@@ -48,6 +48,11 @@
                class="{{ request()->filled('search') || $days !== 30 ? '' : 'hidden' }} px-2 py-2 text-sm text-gray-500 hover:text-gray-800">
                 Reset
             </a>
+            <button id="activity-log-refresh" type="button"
+                    class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600">
+                <i class="fas fa-rotate-right" aria-hidden="true"></i>
+                Refresh
+            </button>
         </form>
 
         <div class="overflow-x-auto">
@@ -123,6 +128,7 @@
     const previousButton = document.getElementById('activity-log-previous');
     const nextButton = document.getElementById('activity-log-next');
     const resetLink = document.getElementById('activity-reset');
+    const refreshButton = document.getElementById('activity-log-refresh');
     let currentPage = Number(table.dataset.currentPage);
     let lastPage = Number(table.dataset.lastPage);
     let debounceTimer;
@@ -228,6 +234,7 @@
     nextButton.addEventListener('click', () => {
         if (currentPage < lastPage) loadActivityLogs(currentPage + 1);
     });
+    refreshButton.addEventListener('click', () => loadActivityLogs(currentPage));
     resetLink?.addEventListener('click', (event) => {
         event.preventDefault();
         searchInput.value = '';

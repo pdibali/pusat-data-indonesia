@@ -11,7 +11,12 @@ class LogAuthenticatedPageVisits
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->isMethod('GET') || $request->ajax() || ! auth()->check()) {
+        $user = $request->user();
+        $isLogout = $request->isMethod('POST')
+            && $request->routeIs('logout')
+            && $user !== null;
+
+        if (! $isLogout && (! $request->isMethod('GET') || $request->ajax() || $user === null)) {
             return $next($request);
         }
 
@@ -19,11 +24,9 @@ class LogAuthenticatedPageVisits
         $response = $next($request);
         $contentType = (string) $response->headers->get('Content-Type', '');
 
-        if (! str_starts_with(strtolower($contentType), 'text/html')) {
+        if (! $isLogout && ! str_starts_with(strtolower($contentType), 'text/html')) {
             return $response;
         }
-
-        $user = $request->user();
 
         try {
             UserActivityLog::create([

@@ -92,7 +92,7 @@
                                 'Definisi' => 'mdDefinisi',
                                 'Metodologi' => 'mdMetodologi',
                                 'Penjelasan Metode' => 'mdPenjelasanMetode',
-                                'Produsen Data' => 'mdProdusenData',
+                                'Sumber Produsen' => 'mdProdusenData',
                                 'Tipe Data' => 'mdTipeData',
                                 'Frekuensi Penerbitan' => 'mdFrekuensiPenerbitan',
                                 'Wilayah (Lokasi Data)' => 'mdWilayahData',
@@ -262,7 +262,7 @@ const MD_DETAIL_API_BASE = '{{ url("metadata") }}';
 const MD_DETAIL_PAGE_BASE = '{{ url("metadata") }}';
 
 // ─── Buka modal ───────────────────────────────────────────────
-async function openMetadataModal(metadataId) {
+async function openMetadataModal(metadataId, sourceProducer = null) {
     const modal = document.getElementById('metadataDetailModal');
 
     // Reset state
@@ -282,7 +282,7 @@ async function openMetadataModal(metadataId) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const d = await res.json();
 
-        _populateModal(d);
+        _populateModal(d, sourceProducer);
 
     } catch (e) {
         console.error('Gagal memuat detail metadata:', e);
@@ -292,7 +292,7 @@ async function openMetadataModal(metadataId) {
 }
 
 // ─── Isi modal dengan data ─────────────────────────────────────
-function _populateModal(d) {
+function _populateModal(d, sourceProducer = null) {
     // Header
     document.getElementById('mdModalTitle').textContent = d.nama ?? '—';
     document.getElementById('mdAlias').textContent      = d.alias ?? '';
@@ -338,7 +338,7 @@ function _populateModal(d) {
         mdDefinisi: d.definisi,
         mdMetodologi: d.metodologi,
         mdPenjelasanMetode: d.penjelasan_metodologi,
-        mdProdusenData: d.produsen,
+        mdProdusenData: sourceProducer ?? d.produsen,
         mdTipeData: d.tipe_data,
         mdFrekuensiPenerbitan: d.frekuensi_penerbitan,
         mdWilayahData: d.wilayah_data,

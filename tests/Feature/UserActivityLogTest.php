@@ -43,6 +43,27 @@ class UserActivityLogTest extends TestCase
         ]);
     }
 
+    public function test_authenticated_logout_is_logged_after_the_session_is_ended(): void
+    {
+        $user = User::factory()->create([
+            'group_id' => 1,
+            'name' => 'Logout Activity User',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('logout'))
+            ->assertRedirect('/');
+
+        $this->assertDatabaseHas('user_activity_logs', [
+            'user_id' => $user->user_id,
+            'user_name' => 'Logout Activity User',
+            'method' => 'POST',
+            'route_name' => 'logout',
+            'request_path' => '/logout',
+            'status_code' => 302,
+        ]);
+    }
+
     public function test_activity_log_view_is_restricted_to_administrators(): void
     {
         $customer = User::factory()->create([
@@ -93,7 +114,9 @@ class UserActivityLogTest extends TestCase
             ->get(route('admin.activity_logs.index'))
             ->assertOk()
             ->assertSee($reviewer->name)
-            ->assertSee('/data');
+            ->assertSee('/data')
+            ->assertSee('id="activity-log-refresh"', false)
+            ->assertSee("refreshButton.addEventListener('click', () => loadActivityLogs(currentPage))", false);
     }
 
     public function test_reviewers_can_filter_activity_logs_by_selected_day_range(): void

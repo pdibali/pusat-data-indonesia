@@ -1694,7 +1694,8 @@ function _renderTable(d) {
                                 ${_esc(group.nama)}
 
                                 <button type="button"
-                                        onclick="event.stopPropagation(); openMetadataModal(${row.metadata_id})"
+                                        data-source-producer="${_esc(row.sumber)}"
+                                        onclick="event.stopPropagation(); openMetadataModal(${row.metadata_id}, this.dataset.sourceProducer)"
                                         class="text-blue-400 hover:text-sky-600 transition-colors
                                             bg-transparent border-0 p-0 cursor-pointer"
                                         title="Lihat detail metadata">
@@ -1896,7 +1897,8 @@ function _renderMobileCards(d) {
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <button type="button"
-                                onclick="event.stopPropagation(); openMetadataModal(${group.rows[0]?.metadata_id})"
+                                data-source-producer="${_esc(group.rows[0]?.sumber)}"
+                                onclick="event.stopPropagation(); openMetadataModal(${group.rows[0]?.metadata_id}, this.dataset.sourceProducer)"
                                 class="text-blue-400 hover:text-sky-600 transition-colors">
                             <i class="fas fa-info-circle text-xs"></i>
                         </button>

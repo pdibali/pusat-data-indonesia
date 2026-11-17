@@ -21,6 +21,10 @@ class TemplateProducerSourceTest extends TestCase
 
         $this->actingAs($ids['user'])->get(route('data.index'))
             ->assertOk()
+            ->assertSee('Sumber Produsen')
+            ->assertDontSee('Produsen Data')
+            ->assertSee('openMetadataModal(${row.metadata_id}, this.dataset.sourceProducer)', false)
+            ->assertSee('mdProdusenData: sourceProducer ?? d.produsen', false)
             ->assertSee(": 'N/A';", false);
 
         $response = $this->postJson(route('template.table_data_guest'), [

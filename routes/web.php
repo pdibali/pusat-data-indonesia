@@ -50,7 +50,7 @@ use App\Http\Controllers\SettingController;
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetView'])->name('password.reset');
     Route::post('/reset-password',        [PasswordResetController::class, 'reset'])->name('password.update');
 
-    Route::post('/logout',[AuthController::class, 'logout']);
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     require __DIR__.'/settings.php';
 
